@@ -1,3 +1,4 @@
 /.vscode
 mccomp
 output.ll
+*.o
