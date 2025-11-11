@@ -20,7 +20,7 @@ LDFLAGS = `llvm-config --ldflags --system-libs --libs all`
 TARGET = mccomp
 
 # All .cpp source files
-SRCS = main.cpp lexer.cpp parser.cpp ast.cpp codegen.cpp
+SRCS = mccomp.cpp lexer.cpp parser.cpp ast.cpp codegen.cpp
 
 # All .h header files 
 HEADERS = lexer.h parser.h ast.h codegen.h
