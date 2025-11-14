@@ -180,12 +180,55 @@ static std::vector<std::unique_ptr<ParamAST>> ParseParams() {
 //      | INT_LIT | FLOAT_LIT | BOOL_LIT
 **/
 
+/** ===== NEW =====
+
+// expr              ::= assign
+// assign            ::= IDENT "=" assign
+//                     | logical_or
+// logical_or        ::= logical_and logical_or_prime
+// logical_or_prime  ::= "||" logical_and logical_or_prime
+//                     | ε
+// logical_and       ::= equality logical_and_prime
+// logical_and_prime ::= "&&" equality logical_and_prime
+//                     | ε
+// equality          ::= relational equality_prime
+// equality_prime    ::= ("==" | "!=") relational equality_prime
+//                     | ε
+// relational        ::= additive relational_prime
+// relational_prime  ::= ("<" | ">" | "<=" | ">=") additive relational_prime 
+//                     | ε
+// additive          ::= multiplicative additive_prime
+// additive_prime    ::= ("+" | "-") multiplicative additive_prime 
+//                     | ε
+// mul               ::= unary mul_prime
+// mul_prime         ::= ("*" | "/" | "%") unary mul_prime 
+//                     | ε
+// unary             ::= ("-" | "!") unary
+//                     | primary
+// primary           ::= IDENT primary_tail
+//                     | INT_LIT
+//                     | FLOAT_LIT
+//                     | BOOL_LIT
+//                     | "(" expr ")"
+// primary_tail      ::= "(" args ")" 
+//                     | ε
+// args              ::= expr args_tail 
+//                     | ε
+// args_tail         ::= "," expr args_tail 
+//                     | ε
+**/
+
+// assign            ::= IDENT "=" assign
+//                     | logical_or
+
+
 // expr ::= IDENT "=" expr
 //      |  rval
 static std::unique_ptr<ASTnode> ParseExper() {
-  //
-  // TO BE COMPLETED
-  //
+  if (CurTok.type == IDENT) {
+    // Go into assignment
+    return nullptr;
+  }
   return nullptr;
 }
 

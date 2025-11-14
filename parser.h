@@ -1,5 +1,5 @@
-#ifndef PARSER_H
-#define PARSER_H
+#ifndef MC_PARSER_H
+#define MC_PARSER_H
 
 #include <queue>
 #include "lexer.h"

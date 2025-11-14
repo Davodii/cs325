@@ -1,59 +1,131 @@
 # CS325 - Compiler Design Coursework
 ## Grammar Definition
 ```
-  program ::= extern_list decl_list 
-           | decl_list
-  extern_list ::= extern_list extern
-               |  extern
-  extern ::= "extern" type_spec IDENT "(" params ")" ";"
-  decl_list ::= decl_list decl
-             |  decl
-  decl ::= var_decl 
-        |  fun_decl
-  var_decl ::= var_type IDENT ";" 
-  type_spec ::= "void"
-             |  var_type           
-  var_type  ::= "int" |  "float" |  "bool"
-  fun_decl ::= type_spec IDENT "(" params ")" block
-  params ::= param_list  
-          |  "void" | epsilon
-  param_list ::= param_list "," param 
-              |  param
-  param ::= var_type IDENT
-  block ::= "{" local_decls stmt_list "}"
-  local_decls ::= local_decls local_decl
-               |  epsilon
-  local_decl ::= var_type IDENT ";"
-  stmt_list ::= stmt_list stmt 
-             |  epsilon
-  stmt ::= expr_stmt 
-        |  block 
-        |  if_stmt 
-        |  while_stmt 
-        |  return_stmt
-  expr_stmt ::= expr ";" 
-             |  ";"
-  while_stmt ::= "while" "(" expr ")" stmt 
-  if_stmt ::= "if" "(" expr ")" block else_stmt
-  else_stmt  ::= "else" block
-              |  epsilon
-  return_stmt ::= "return" ";" 
-               |  "return" expr ";"               
+  program         ::= extern_list decl_list 
+                  | decl_list
+
+  extern_list     ::= extern_list extern
+                  |  extern
+
+  extern          ::= "extern" type_spec IDENT "(" params ")" ";"
+
+  decl_list       ::= decl_list decl
+                  |  decl
+
+  decl            ::= var_decl 
+                  |  fun_decl
+
+  var_decl        ::= var_type IDENT ";" 
+
+  type_spec       ::= "void"
+                  |  var_type     
+
+  var_type        ::= "int" 
+                  |  "float" 
+                  |  "bool"
+
+  fun_decl        ::= type_spec IDENT "(" params ")" block
+
+  params          ::= param_list  
+                  |  "void" 
+                  | epsilon
+
+  param_list      ::= param_list "," param 
+                  |  param
+
+  param           ::= var_type IDENT
+
+  block           ::= "{" local_decls stmt_list "}"
+
+  local_decls     ::= local_decls local_decl
+                  |  epsilon
+
+  local_decl      ::= var_type IDENT ";"
+
+  stmt_list       ::= stmt_list stmt 
+                  |  epsilon
+
+  stmt            ::= expr_stmt 
+                  |  block 
+                  |  if_stmt 
+                  |  while_stmt 
+                  |  return_stmt
+
+  expr_stmt       ::= expr ";" 
+                  |  ";"
+
+  while_stmt      ::= "while" "(" expr ")" stmt 
+
+  if_stmt         ::= "if" "(" expr ")" block else_stmt
+
+  else_stmt       ::= "else" block
+                  |  epsilon
+
+  return_stmt     ::= "return" ";" 
+                  |  "return" expr ";"    
+
   # operators in order of increasing precedence      
-  expr ::= IDENT "=" expr
-        | rval
-  rval ::= rval "||" rval                                              
-        | rval "&&" rval                                             
-        | rval "==" rval | rval "!=" rval                            
-        | rval "<=" rval | rval "<" rval | rval ">=" rval | rval ">" rval
-        | rval "+" rval  | rval "-" rval
-        | rval "*" rval  | rval "/" rval  | rval "%" rval
-        | "-" rval | "!" rval
-        | "(" expr ")"
-        | IDENT | IDENT "(" args ")" 
-        | INT_LIT | FLOAT_LIT | BOOL_LIT        
-  args ::= arg_list 
-        |  epsilon
-  arg_list ::= arg_list "," expr
-            |  expr          
+  expr            ::= IDENT "=" expr
+                  | rval
+                  
+  rval            ::= rval "||" rval                                              
+                  | rval "&&" rval                                             
+                  | rval "==" rval | rval "!=" rval                            
+                  | rval "<=" rval | rval "<" rval | rval ">=" rval | rval ">" rval
+                  | rval "+" rval  | rval "-" rval
+                  | rval "*" rval  | rval "/" rval  | rval "%" rval
+                  | "-" rval | "!" rval
+                  | "(" expr ")"
+                  | IDENT | IDENT "(" args ")" 
+                  | INT_LIT | FLOAT_LIT | BOOL_LIT        
+  args            ::= arg_list 
+                  |  epsilon
+  arg_list        ::= arg_list "," expr
+                  |  expr          
+```
+
+## New
+```
+expr              ::= logical_or
+
+logical_or        ::= logical_and logical_or_prime
+logical_or_prime  ::= "||" logical_and logical_or_prime
+                    | ε
+
+logical_and       ::= equality logical_and_prime
+logical_and_prime ::= "&&" equality logical_and_prime
+                    | ε
+
+equality          ::= relational equality_prime
+equality_prime    ::= ("==" | "!=") relational equality_prime
+                    | ε
+
+relational        ::= additive relational_prime
+relational_prime  ::= ("<" | ">" | "<=" | ">=") additive relational_prime 
+                    | ε
+
+additive          ::= multiplicative additive_prime
+additive_prime    ::= ("+" | "-") multiplicative additive_prime 
+                    | ε
+
+mul               ::= unary mul_prime
+mul_prime         ::= ("*" | "/" | "%") unary mul_prime 
+                    | ε
+
+unary             ::= ("-" | "!") unary
+                  | primary
+
+primary           ::= IDENT primary_tail
+                  | INT_LIT
+                  | FLOAT_LIT
+                  | BOOL_LIT
+                  | "(" expr ")"
+
+primary_tail      ::= "(" args ")" 
+                    | ε
+
+args              ::= expr args_tail 
+                    | ε
+args_tail         ::= "," expr args_tail 
+                    | ε
 ```
