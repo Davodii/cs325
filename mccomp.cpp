@@ -6,38 +6,32 @@
 #include <iostream>
 
 int main(int argc, char **argv) {
-  if (argc == 2) {
-    pFile = fopen(argv[1], "r");
-    if (pFile == NULL)
-      perror("Error opening file");
-  } else {
+  if (argc != 2) {
     std::cout << "Usage: ./code InputFile\n";
     return 1;
   }
 
-  // initialize line number and column numbers to zero
-  lineNo = 1;
-  columnNo = 1;
+  // Initialize Lexer
+  Lexer lexer(argv[1]);
 
-  // get the first token
-  getNextToken();
-  while (CurTok.type != EOF_TOK) {
-    fprintf(stderr, "Token: %s with type %d\n", CurTok.lexeme.c_str(),
-            CurTok.type);
-    getNextToken();
-  }
-  fprintf(stderr, "Lexer Finished\n");
+  // Create the Parser
+  Parser parser(lexer);
 
-  // Make the module, which holds all the code.
+  // Run parser to build the AST
+  auto ast = parser.parse();
+  fprintf(stderr, "Parsing finished!\n");
+
+  // Initialize code generation
   TheModule = std::make_unique<Module>("mini-c", TheContext);
 
-  // Run the parser now.
+  // Generate code from AST
+  for (const auto& node : ast) {
+    if (node) {
+      node->codegen();
+    }
+  }
 
-  /* UNCOMMENT : Task 2 - Parser
-   * parser();
-   * fprintf(stderr, "Parsing Finished\n");
-   */
-
+  // Print IR
   printf(
       "********************* FINAL IR (begin) ****************************\n");
   // Print out all of the generated code into a file called output.ll
@@ -55,6 +49,6 @@ int main(int argc, char **argv) {
   printf(
       "********************* FINAL IR (end) ******************************\n");
 
-  fclose(pFile); // close the file that contains the code that was parsed
+  // fclose(pFile); // close the file that contains the code that was parsed
   return 0;
 }

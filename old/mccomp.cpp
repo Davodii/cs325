@@ -446,11 +446,11 @@ public:
 
 /// BoolASTnode - Class for boolean literals true and false,
 class BoolASTnode : public ASTnode {
-  bool Bool;
+  bool mBool;
   TOKEN Tok;
 
 public:
-  BoolASTnode(TOKEN tok, bool B) : Bool(B), Tok(tok) {}
+  BoolASTnode(TOKEN tok, bool B) : mBool(B), Tok(tok) {}
   virtual Value *codegen();
   const std::string &getType() const { return Tok.lexeme; }
 };

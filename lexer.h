@@ -70,19 +70,29 @@ enum TOKEN_TYPE {
 class TOKEN {
 public:
   TOKEN() = default;
-  int type = -100;
-  std::string lexeme;
-  int lineNo;
-  int columnNo;
+  int mType = -100;
+  std::string mLexeme;
+  int mLineNo;
+  int mColumnNo;
   const std::string getIdentifierStr() const;
   const int getIntVal() const;
   const float getFloatVal() const;
   const bool getBoolVal() const;
 };
 
-TOKEN gettok();
+class Lexer {
+  FILE *pFile;
+  int mLineNo;
+  int mColumnNo;
+  std::string mGlobalLexeme;
 
-extern FILE *pFile;
-extern int lineNo, columnNo;
+  TOKEN returnToken(std::string lexVal, int tokType);
+
+public:
+  Lexer(const char* filename);
+  ~Lexer();
+
+  TOKEN getNextToken();
+};
 
 #endif

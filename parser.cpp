@@ -1,34 +1,44 @@
 #include "parser.h"
-// #include "lexer.h"
 
-TOKEN CurTok;
-static std::deque<TOKEN> tok_buffer;
-
-// Parse function declaration
-static std::unique_ptr<ASTnode> ParseDecl();
-static std::unique_ptr<ASTnode> ParseStmt();
-static std::unique_ptr<ASTnode> ParseBlock();
-static std::unique_ptr<ASTnode> ParseExper();
-static std::unique_ptr<ParamAST> ParseParam();
-static std::unique_ptr<VarDeclAST> ParseLocalDecl();
-static std::vector<std::unique_ptr<ASTnode>> ParseStmtListPrime();
-
-TOKEN getNextToken() {
-
-  if (tok_buffer.size() == 0)
-    tok_buffer.push_back(gettok());
-
-  TOKEN temp = tok_buffer.front();
-  tok_buffer.pop_front();
-
-  return CurTok = temp;
+Parser::Parser(Lexer &lexer) : lexer(lexer) {
+  // Prime the pump by getting the first token
+  consumeToken();
 }
 
-void putBackToken(TOKEN tok) { tok_buffer.push_front(tok); }
+void Parser::consumeToken() {
+  if (tokenBuffer.empty()) {
+    currentToken = lexer.getNextToken();
+  } else {
+    currentToken = tokenBuffer.front();
+    tokenBuffer.pop_front();
+  }
+}
+void Parser::putBackToken(TOKEN token) {
+  tokenBuffer.push_front(token);
+}
+
+
+// TOKEN CurTok;
+// static std::deque<TOKEN> tok_buffer;
+
+// Parse function declaration
+
+// TOKEN getNextToken() {
+
+//   if (tok_buffer.size() == 0)
+//     tok_buffer.push_back(gettok());
+
+//   TOKEN temp = tok_buffer.front();
+//   tok_buffer.pop_front();
+
+//   return CurTok = temp;
+// }
+
+// void putBackToken(TOKEN tok) { tok_buffer.push_front(tok); }
 
 /// LogError* - These are little helper function for error handling.
 std::unique_ptr<ASTnode> LogError(TOKEN tok, const char *Str) {
-  fprintf(stderr, "%d:%d Error: %s\n", tok.lineNo, tok.columnNo, Str);
+  fprintf(stderr, "%d:%d Error: %s\n", tok.mLineNo, tok.mColumnNo, Str);
   exit(2);
   return nullptr;
 }
@@ -46,21 +56,21 @@ std::unique_ptr<ASTnode> LogError(const char *Str) {
 }
 
 // element ::= FLOAT_LIT
-static std::unique_ptr<ASTnode> ParseFloatNumberExpr() {
+std::unique_ptr<ASTnode> Parser::ParseFloatNumberExpr() {
   auto Result = std::make_unique<FloatASTnode>(CurTok, CurTok.getFloatVal());
   getNextToken(); // consume the number
   return std::move(Result);
 }
 
 // element ::= INT_LIT
-static std::unique_ptr<ASTnode> ParseIntNumberExpr() {
+std::unique_ptr<ASTnode> Parser::ParseIntNumberExpr() {
   auto Result = std::make_unique<IntASTnode>(CurTok, CurTok.getIntVal());
   getNextToken(); // consume the number
   return std::move(Result);
 }
 
 // element ::= BOOL_LIT
-static std::unique_ptr<ASTnode> ParseBoolExpr() {
+std::unique_ptr<ASTnode> Parser::ParseBoolExpr() {
   auto Result = std::make_unique<BoolASTnode>(CurTok, CurTok.getBoolVal());
   getNextToken(); // consume the number
   return std::move(Result);
@@ -68,10 +78,10 @@ static std::unique_ptr<ASTnode> ParseBoolExpr() {
 
 // param_list_prime ::= "," param param_list_prime
 //                   |  ε
-static std::vector<std::unique_ptr<ParamAST>> ParseParamListPrime() {
+std::vector<std::unique_ptr<ParamAST>> Parser::ParseParamListPrime() {
   std::vector<std::unique_ptr<ParamAST>> param_list;
 
-  if (CurTok.type == COMMA) { // more parameters in list
+  if (CurTok.mType == COMMA) { // more parameters in list
     getNextToken();           // eat ","
 
     auto param = ParseParam();
@@ -83,7 +93,7 @@ static std::vector<std::unique_ptr<ParamAST>> ParseParamListPrime() {
         param_list.push_back(std::move(param_list_prime.at(i)));
       }
     }
-  } else if (CurTok.type == RPAR) { // FOLLOW(param_list_prime)
+  } else if (CurTok.mType == RPAR) { // FOLLOW(param_list_prime)
     // expand by param_list_prime ::= ε
     // do nothing
   } else {
@@ -94,13 +104,13 @@ static std::vector<std::unique_ptr<ParamAST>> ParseParamListPrime() {
 }
 
 // param ::= var_type IDENT
-static std::unique_ptr<ParamAST> ParseParam() {
+std::unique_ptr<ParamAST> Parser::ParseParam() {
 
-  std::string Type = CurTok.lexeme; // keep track of the type of the param
+  std::string Type = CurTok.mLexeme; // keep track of the type of the param
   getNextToken();                   // eat the type token
   std::unique_ptr<ParamAST> P;
 
-  if (CurTok.type == IDENT) { // parameter declaration
+  if (CurTok.mType == IDENT) { // parameter declaration
     std::string Name = CurTok.getIdentifierStr();
     getNextToken(); // eat "IDENT"
   }
@@ -109,7 +119,7 @@ static std::unique_ptr<ParamAST> ParseParam() {
 }
 
 // param_list ::= param param_list_prime
-static std::vector<std::unique_ptr<ParamAST>> ParseParamList() {
+std::vector<std::unique_ptr<ParamAST>> Parser::ParseParamList() {
   std::vector<std::unique_ptr<ParamAST>> param_list;
 
   auto param = ParseParam();
@@ -126,29 +136,29 @@ static std::vector<std::unique_ptr<ParamAST>> ParseParamList() {
 
 // params ::= param_list
 //         |  ε
-static std::vector<std::unique_ptr<ParamAST>> ParseParams() {
+std::vector<std::unique_ptr<ParamAST>> Parser::ParseParams() {
   std::vector<std::unique_ptr<ParamAST>> param_list;
 
   std::string Type;
   std::string Name = "";
 
-  if (CurTok.type == INT_TOK || CurTok.type == FLOAT_TOK ||
-      CurTok.type == BOOL_TOK) { // FIRST(param_list)
+  if (CurTok.mType == INT_TOK || CurTok.mType == FLOAT_TOK ||
+      CurTok.mType == BOOL_TOK) { // FIRST(param_list)
 
     auto list = ParseParamList();
     for (unsigned i = 0; i < list.size(); i++) {
       param_list.push_back(std::move(list.at(i)));
     }
 
-  } else if (CurTok.type == VOID_TOK) { // FIRST("void")
+  } else if (CurTok.mType == VOID_TOK) { // FIRST("void")
     // void
     // check that the next token is a )
     getNextToken(); // eat 'void'
-    if (CurTok.type != RPAR) {
+    if (CurTok.mType != RPAR) {
       LogError(CurTok, "expected ')', after 'void' in \
        end of function declaration");
     }
-  } else if (CurTok.type == RPAR) { // FOLLOW(params)
+  } else if (CurTok.mType == RPAR) { // FOLLOW(params)
     // expand by params ::= ε
     // do nothing
   } else {
@@ -224,8 +234,8 @@ static std::vector<std::unique_ptr<ParamAST>> ParseParams() {
 
 // expr ::= IDENT "=" expr
 //      |  rval
-static std::unique_ptr<ASTnode> ParseExper() {
-  if (CurTok.type == IDENT) {
+std::unique_ptr<ASTnode> Parser::ParseExper() {
+  if (CurTok.mType == IDENT) {
     // Go into assignment
     return nullptr;
   }
@@ -234,15 +244,15 @@ static std::unique_ptr<ASTnode> ParseExper() {
 
 // expr_stmt ::= expr ";"
 //            |  ";"
-static std::unique_ptr<ASTnode> ParseExperStmt() {
+std::unique_ptr<ASTnode> Parser::ParseExperStmt() {
 
-  if (CurTok.type == SC) { // empty statement
+  if (CurTok.mType == SC) { // empty statement
     getNextToken();        // eat ;
     return nullptr;
   } else {
     auto expr = ParseExper();
     if (expr) {
-      if (CurTok.type == SC) {
+      if (CurTok.mType == SC) {
         getNextToken(); // eat ;
         return expr;
       } else {
@@ -256,13 +266,13 @@ static std::unique_ptr<ASTnode> ParseExperStmt() {
 
 // else_stmt  ::= "else" block
 //             |  ε
-static std::unique_ptr<ASTnode> ParseElseStmt() {
+std::unique_ptr<ASTnode> Parser::ParseElseStmt() {
 
-  if (CurTok.type == ELSE) { // FIRST(else_stmt)
+  if (CurTok.mType == ELSE) { // FIRST(else_stmt)
     // expand by else_stmt  ::= "else" "{" stmt "}"
     getNextToken(); // eat "else"
 
-    if (!(CurTok.type == LBRA)) {
+    if (!(CurTok.mType == LBRA)) {
       return LogError(
           CurTok, "expected { to start else block of if-then-else statment");
     }
@@ -270,14 +280,14 @@ static std::unique_ptr<ASTnode> ParseElseStmt() {
     if (!Else)
       return nullptr;
     return Else;
-  } else if (CurTok.type == NOT || CurTok.type == MINUS ||
-             CurTok.type == PLUS || CurTok.type == LPAR ||
-             CurTok.type == IDENT || CurTok.type == INT_LIT ||
-             CurTok.type == BOOL_LIT || CurTok.type == FLOAT_LIT ||
-             CurTok.type == SC || CurTok.type == LBRA || CurTok.type == WHILE ||
-             CurTok.type == IF || CurTok.type == ELSE ||
-             CurTok.type == RETURN ||
-             CurTok.type == RBRA) { // FOLLOW(else_stmt)
+  } else if (CurTok.mType == NOT || CurTok.mType == MINUS ||
+             CurTok.mType == PLUS || CurTok.mType == LPAR ||
+             CurTok.mType == IDENT || CurTok.mType == INT_LIT ||
+             CurTok.mType == BOOL_LIT || CurTok.mType == FLOAT_LIT ||
+             CurTok.mType == SC || CurTok.mType == LBRA || CurTok.mType == WHILE ||
+             CurTok.mType == IF || CurTok.mType == ELSE ||
+             CurTok.mType == RETURN ||
+             CurTok.mType == RBRA) { // FOLLOW(else_stmt)
     // expand by else_stmt  ::= ε
     // return an empty statement
     return nullptr;
@@ -290,19 +300,19 @@ static std::unique_ptr<ASTnode> ParseElseStmt() {
 }
 
 // if_stmt ::= "if" "(" expr ")" block else_stmt
-static std::unique_ptr<ASTnode> ParseIfStmt() {
+std::unique_ptr<ASTnode> Parser::ParseIfStmt() {
   getNextToken(); // eat the if.
-  if (CurTok.type == LPAR) {
+  if (CurTok.mType == LPAR) {
     getNextToken(); // eat (
     // condition.
     auto Cond = ParseExper();
     if (!Cond)
       return nullptr;
-    if (CurTok.type != RPAR)
+    if (CurTok.mType != RPAR)
       return LogError(CurTok, "expected )");
     getNextToken(); // eat )
 
-    if (!(CurTok.type == LBRA)) {
+    if (!(CurTok.mType == LBRA)) {
       return LogError(CurTok, "expected { to start then block of if statment");
     }
 
@@ -322,22 +332,22 @@ static std::unique_ptr<ASTnode> ParseIfStmt() {
 
 // return_stmt ::= "return" ";"
 //             |  "return" expr ";"
-static std::unique_ptr<ASTnode> ParseReturnStmt() {
+std::unique_ptr<ASTnode> Parser::ParseReturnStmt() {
   getNextToken(); // eat the return
-  if (CurTok.type == SC) {
+  if (CurTok.mType == SC) {
     getNextToken(); // eat the ;
     // return a null value
     return std::make_unique<ReturnAST>(std::move(nullptr));
-  } else if (CurTok.type == NOT || CurTok.type == MINUS ||
-             CurTok.type == PLUS || CurTok.type == LPAR ||
-             CurTok.type == IDENT || CurTok.type == BOOL_LIT ||
-             CurTok.type == INT_LIT ||
-             CurTok.type == FLOAT_LIT) { // FIRST(expr)
+  } else if (CurTok.mType == NOT || CurTok.mType == MINUS ||
+             CurTok.mType == PLUS || CurTok.mType == LPAR ||
+             CurTok.mType == IDENT || CurTok.mType == BOOL_LIT ||
+             CurTok.mType == INT_LIT ||
+             CurTok.mType == FLOAT_LIT) { // FIRST(expr)
     auto val = ParseExper();
     if (!val)
       return nullptr;
 
-    if (CurTok.type == SC) {
+    if (CurTok.mType == SC) {
       getNextToken(); // eat the ;
       return std::make_unique<ReturnAST>(std::move(val));
     } else
@@ -349,16 +359,16 @@ static std::unique_ptr<ASTnode> ParseReturnStmt() {
 }
 
 // while_stmt ::= "while" "(" expr ")" stmt
-static std::unique_ptr<ASTnode> ParseWhileStmt() {
+std::unique_ptr<ASTnode> Parser::ParseWhileStmt() {
 
   getNextToken(); // eat the while.
-  if (CurTok.type == LPAR) {
+  if (CurTok.mType == LPAR) {
     getNextToken(); // eat (
     // condition.
     auto Cond = ParseExper();
     if (!Cond)
       return nullptr;
-    if (CurTok.type != RPAR)
+    if (CurTok.mType != RPAR)
       return LogError(CurTok, "expected )");
     getNextToken(); // eat )
 
@@ -376,35 +386,35 @@ static std::unique_ptr<ASTnode> ParseWhileStmt() {
 //      |  if_stmt
 //      |  while_stmt
 //      |  return_stmt
-static std::unique_ptr<ASTnode> ParseStmt() {
+std::unique_ptr<ASTnode> Parser::ParseStmt() {
 
-  if (CurTok.type == NOT || CurTok.type == MINUS || CurTok.type == PLUS ||
-      CurTok.type == LPAR || CurTok.type == IDENT || CurTok.type == BOOL_LIT ||
-      CurTok.type == INT_LIT || CurTok.type == FLOAT_LIT ||
-      CurTok.type == SC) { // FIRST(expr_stmt)
+  if (CurTok.mType == NOT || CurTok.mType == MINUS || CurTok.mType == PLUS ||
+      CurTok.mType == LPAR || CurTok.mType == IDENT || CurTok.mType == BOOL_LIT ||
+      CurTok.mType == INT_LIT || CurTok.mType == FLOAT_LIT ||
+      CurTok.mType == SC) { // FIRST(expr_stmt)
     // expand by stmt ::= expr_stmt
     auto expr_stmt = ParseExperStmt();
     fprintf(stderr, "Parsed an expression statement\n");
     return expr_stmt;
-  } else if (CurTok.type == LBRA) { // FIRST(block)
+  } else if (CurTok.mType == LBRA) { // FIRST(block)
     auto block_stmt = ParseBlock();
     if (block_stmt) {
       fprintf(stderr, "Parsed a block\n");
       return block_stmt;
     }
-  } else if (CurTok.type == IF) { // FIRST(if_stmt)
+  } else if (CurTok.mType == IF) { // FIRST(if_stmt)
     auto if_stmt = ParseIfStmt();
     if (if_stmt) {
       fprintf(stderr, "Parsed an if statment\n");
       return if_stmt;
     }
-  } else if (CurTok.type == WHILE) { // FIRST(while_stmt)
+  } else if (CurTok.mType == WHILE) { // FIRST(while_stmt)
     auto while_stmt = ParseWhileStmt();
     if (while_stmt) {
       fprintf(stderr, "Parsed a while statment\n");
       return while_stmt;
     }
-  } else if (CurTok.type == RETURN) { // FIRST(return_stmt)
+  } else if (CurTok.mType == RETURN) { // FIRST(return_stmt)
     auto return_stmt = ParseReturnStmt();
     if (return_stmt) {
       fprintf(stderr, "Parsed a return statment\n");
@@ -422,7 +432,7 @@ static std::unique_ptr<ASTnode> ParseStmt() {
 }
 
 // stmt_list ::= stmt stmt_list_prime
-static std::vector<std::unique_ptr<ASTnode>> ParseStmtList() {
+std::vector<std::unique_ptr<ASTnode>> Parser::ParseStmtList() {
   std::vector<std::unique_ptr<ASTnode>> stmt_list; // vector of statements
   auto stmt = ParseStmt();
   if (stmt) {
@@ -437,13 +447,13 @@ static std::vector<std::unique_ptr<ASTnode>> ParseStmtList() {
 
 // stmt_list_prime ::= stmt stmt_list_prime
 //                  |  ε
-static std::vector<std::unique_ptr<ASTnode>> ParseStmtListPrime() {
+std::vector<std::unique_ptr<ASTnode>> Parser::ParseStmtListPrime() {
   std::vector<std::unique_ptr<ASTnode>> stmt_list; // vector of statements
-  if (CurTok.type == NOT || CurTok.type == MINUS || CurTok.type == PLUS ||
-      CurTok.type == LPAR || CurTok.type == IDENT || CurTok.type == BOOL_LIT ||
-      CurTok.type == INT_LIT || CurTok.type == FLOAT_LIT || CurTok.type == SC ||
-      CurTok.type == LBRA || CurTok.type == WHILE || CurTok.type == IF ||
-      CurTok.type == ELSE || CurTok.type == RETURN) { // FIRST(stmt)
+  if (CurTok.mType == NOT || CurTok.mType == MINUS || CurTok.mType == PLUS ||
+      CurTok.mType == LPAR || CurTok.mType == IDENT || CurTok.mType == BOOL_LIT ||
+      CurTok.mType == INT_LIT || CurTok.mType == FLOAT_LIT || CurTok.mType == SC ||
+      CurTok.mType == LBRA || CurTok.mType == WHILE || CurTok.mType == IF ||
+      CurTok.mType == ELSE || CurTok.mType == RETURN) { // FIRST(stmt)
     // expand by stmt_list ::= stmt stmt_list_prime
     auto stmt = ParseStmt();
     if (stmt) {
@@ -454,7 +464,7 @@ static std::vector<std::unique_ptr<ASTnode>> ParseStmtListPrime() {
       stmt_list.push_back(std::move(stmt_prime.at(i)));
     }
 
-  } else if (CurTok.type == RBRA) { // FOLLOW(stmt_list_prime)
+  } else if (CurTok.mType == RBRA) { // FOLLOW(stmt_list_prime)
     // expand by stmt_list_prime ::= ε
     // do nothing
   }
@@ -464,12 +474,12 @@ static std::vector<std::unique_ptr<ASTnode>> ParseStmtListPrime() {
 
 // local_decls_prime ::= local_decl local_decls_prime
 //                    |  ε
-static std::vector<std::unique_ptr<VarDeclAST>> ParseLocalDeclsPrime() {
+std::vector<std::unique_ptr<VarDeclAST>> Parser::ParseLocalDeclsPrime() {
   std::vector<std::unique_ptr<VarDeclAST>>
       local_decls_prime; // vector of local decls
 
-  if (CurTok.type == INT_TOK || CurTok.type == FLOAT_TOK ||
-      CurTok.type == BOOL_TOK) { // FIRST(local_decl)
+  if (CurTok.mType == INT_TOK || CurTok.mType == FLOAT_TOK ||
+      CurTok.mType == BOOL_TOK) { // FIRST(local_decl)
     auto local_decl = ParseLocalDecl();
     if (local_decl) {
       local_decls_prime.push_back(std::move(local_decl));
@@ -478,12 +488,12 @@ static std::vector<std::unique_ptr<VarDeclAST>> ParseLocalDeclsPrime() {
     for (unsigned i = 0; i < prime.size(); i++) {
       local_decls_prime.push_back(std::move(prime.at(i)));
     }
-  } else if (CurTok.type == MINUS || CurTok.type == NOT ||
-             CurTok.type == LPAR || CurTok.type == IDENT ||
-             CurTok.type == INT_LIT || CurTok.type == FLOAT_LIT ||
-             CurTok.type == BOOL_LIT || CurTok.type == SC ||
-             CurTok.type == LBRA || CurTok.type == IF || CurTok.type == WHILE ||
-             CurTok.type == RETURN) { // FOLLOW(local_decls_prime)
+  } else if (CurTok.mType == MINUS || CurTok.mType == NOT ||
+             CurTok.mType == LPAR || CurTok.mType == IDENT ||
+             CurTok.mType == INT_LIT || CurTok.mType == FLOAT_LIT ||
+             CurTok.mType == BOOL_LIT || CurTok.mType == SC ||
+             CurTok.mType == LBRA || CurTok.mType == IF || CurTok.mType == WHILE ||
+             CurTok.mType == RETURN) { // FOLLOW(local_decls_prime)
     // expand by local_decls_prime ::=  ε
     // do nothing;
   } else {
@@ -500,24 +510,24 @@ static std::vector<std::unique_ptr<VarDeclAST>> ParseLocalDeclsPrime() {
 // var_type ::= "int"
 //           |  "float"
 //           |  "bool"
-static std::unique_ptr<VarDeclAST> ParseLocalDecl() {
+std::unique_ptr<VarDeclAST> Parser::ParseLocalDecl() {
   TOKEN PrevTok;
   std::string Type;
   std::string Name = "";
   std::unique_ptr<VarDeclAST> local_decl;
 
-  if (CurTok.type == INT_TOK || CurTok.type == FLOAT_TOK ||
-      CurTok.type == BOOL_TOK) { // FIRST(var_type)
+  if (CurTok.mType == INT_TOK || CurTok.mType == FLOAT_TOK ||
+      CurTok.mType == BOOL_TOK) { // FIRST(var_type)
     PrevTok = CurTok;
     getNextToken(); // eat 'int' or 'float or 'bool'
-    if (CurTok.type == IDENT) {
-      Type = PrevTok.lexeme;
+    if (CurTok.mType == IDENT) {
+      Type = PrevTok.mLexeme;
       Name = CurTok.getIdentifierStr(); // save the identifier name
       auto ident = std::make_unique<VariableASTnode>(CurTok, Name);
       local_decl = std::make_unique<VarDeclAST>(std::move(ident), Type);
 
       getNextToken(); // eat 'IDENT'
-      if (CurTok.type != SC) {
+      if (CurTok.mType != SC) {
         LogError(CurTok, "Expected ';' to end local variable declaration");
         return nullptr;
       }
@@ -532,11 +542,11 @@ static std::unique_ptr<VarDeclAST> ParseLocalDecl() {
 }
 
 // local_decls ::= local_decl local_decls_prime
-static std::vector<std::unique_ptr<VarDeclAST>> ParseLocalDecls() {
+std::vector<std::unique_ptr<VarDeclAST>> Parser::ParseLocalDecls() {
   std::vector<std::unique_ptr<VarDeclAST>> local_decls; // vector of local decls
 
-  if (CurTok.type == INT_TOK || CurTok.type == FLOAT_TOK ||
-      CurTok.type == BOOL_TOK) { // FIRST(local_decl)
+  if (CurTok.mType == INT_TOK || CurTok.mType == FLOAT_TOK ||
+      CurTok.mType == BOOL_TOK) { // FIRST(local_decl)
 
     auto local_decl = ParseLocalDecl();
     if (local_decl) {
@@ -547,12 +557,12 @@ static std::vector<std::unique_ptr<VarDeclAST>> ParseLocalDecls() {
       local_decls.push_back(std::move(local_decls_prime.at(i)));
     }
 
-  } else if (CurTok.type == MINUS || CurTok.type == NOT ||
-             CurTok.type == LPAR || CurTok.type == IDENT ||
-             CurTok.type == INT_LIT || CurTok.type == RETURN ||
-             CurTok.type == FLOAT_LIT || CurTok.type == BOOL_LIT ||
-             CurTok.type == COMMA || CurTok.type == LBRA || CurTok.type == IF ||
-             CurTok.type == WHILE) { // FOLLOW(local_decls)
+  } else if (CurTok.mType == MINUS || CurTok.mType == NOT ||
+             CurTok.mType == LPAR || CurTok.mType == IDENT ||
+             CurTok.mType == INT_LIT || CurTok.mType == RETURN ||
+             CurTok.mType == FLOAT_LIT || CurTok.mType == BOOL_LIT ||
+             CurTok.mType == COMMA || CurTok.mType == LBRA || CurTok.mType == IF ||
+             CurTok.mType == WHILE) { // FOLLOW(local_decls)
                                      // do nothing
   } else {
     LogError(
@@ -566,7 +576,7 @@ static std::vector<std::unique_ptr<VarDeclAST>> ParseLocalDecls() {
 
 // parse block
 // block ::= "{" local_decls stmt_list "}"
-static std::unique_ptr<ASTnode> ParseBlock() {
+std::unique_ptr<ASTnode> Parser::ParseBlock() {
   std::vector<std::unique_ptr<VarDeclAST>> local_decls; // vector of local decls
   std::vector<std::unique_ptr<ASTnode>> stmt_list;      // vector of statements
 
@@ -576,7 +586,7 @@ static std::unique_ptr<ASTnode> ParseBlock() {
   fprintf(stderr, "Parsed a set of local variable declaration\n");
   stmt_list = ParseStmtList();
   fprintf(stderr, "Parsed a list of statements\n");
-  if (CurTok.type == RBRA)
+  if (CurTok.mType == RBRA)
     getNextToken(); // eat '}'
   else {            // syntax error
     LogError(CurTok, "expected '}' , close body of block");
@@ -589,33 +599,33 @@ static std::unique_ptr<ASTnode> ParseBlock() {
 
 // decl ::= var_decl
 //       |  fun_decl
-static std::unique_ptr<ASTnode> ParseDecl() {
+std::unique_ptr<ASTnode> Parser::ParseDecl() {
   std::string IdName;
   std::vector<std::unique_ptr<ParamAST>> param_list;
 
   TOKEN PrevTok = CurTok; // to keep track of the type token
 
-  if (CurTok.type == VOID_TOK || CurTok.type == INT_TOK ||
-      CurTok.type == FLOAT_TOK || CurTok.type == BOOL_TOK) {
+  if (CurTok.mType == VOID_TOK || CurTok.mType == INT_TOK ||
+      CurTok.mType == FLOAT_TOK || CurTok.mType == BOOL_TOK) {
     getNextToken(); // eat the VOID_TOK, INT_TOK, BOOL_TOK or FLOAT_TOK
 
     IdName = CurTok.getIdentifierStr(); // save the identifier name
 
-    if (CurTok.type == IDENT) {
+    if (CurTok.mType == IDENT) {
       auto ident = std::make_unique<VariableASTnode>(CurTok, IdName);
       getNextToken(); // eat the IDENT
-      if (CurTok.type ==
+      if (CurTok.mType ==
           SC) {         // found ';' then this is a global variable declaration.
         getNextToken(); // eat ;
         fprintf(stderr, "Parsed a variable declaration\n");
 
-        if (PrevTok.type != VOID_TOK)
+        if (PrevTok.mType != VOID_TOK)
           return std::make_unique<GlobVarDeclAST>(std::move(ident),
-                                                  PrevTok.lexeme);
+                                                  PrevTok.mLexeme);
         else
           return LogError(PrevTok,
                           "Cannot have variable declaration with type 'void'");
-      } else if (CurTok.type ==
+      } else if (CurTok.mType ==
                  LPAR) { // found '(' then this is a function declaration.
         getNextToken();  // eat (
 
@@ -624,11 +634,11 @@ static std::unique_ptr<ASTnode> ParseDecl() {
         // if (P.size() == 0) return nullptr;
         fprintf(stderr, "Parsed parameter list for function\n");
 
-        if (CurTok.type != RPAR) // syntax error
+        if (CurTok.mType != RPAR) // syntax error
           return LogError(CurTok, "expected ')' in function declaration");
 
         getNextToken();          // eat )
-        if (CurTok.type != LBRA) // syntax error
+        if (CurTok.mType != LBRA) // syntax error
           return LogError(
               CurTok, "expected '{' in function declaration, function body");
 
@@ -645,7 +655,7 @@ static std::unique_ptr<ASTnode> ParseDecl() {
         fprintf(stderr, "Parsed a function declaration\n");
 
         auto Proto = std::make_unique<FunctionPrototypeAST>(
-            IdName, PrevTok.lexeme, std::move(P));
+            IdName, PrevTok.mLexeme, std::move(P));
         return std::make_unique<FunctionDeclAST>(std::move(Proto),
                                                  std::move(B));
       } else
@@ -662,19 +672,19 @@ static std::unique_ptr<ASTnode> ParseDecl() {
 
 // decl_list_prime ::= decl decl_list_prime
 //                  |  ε
-static void ParseDeclListPrime() {
-  if (CurTok.type == VOID_TOK || CurTok.type == INT_TOK ||
-      CurTok.type == FLOAT_TOK || CurTok.type == BOOL_TOK) { // FIRST(decl)
+void Parser::ParseDeclListPrime() {
+  if (CurTok.mType == VOID_TOK || CurTok.mType == INT_TOK ||
+      CurTok.mType == FLOAT_TOK || CurTok.mType == BOOL_TOK) { // FIRST(decl)
 
     if (auto decl = ParseDecl()) {
       fprintf(stderr, "Parsed a top-level variable or function declaration\n");
-      if (auto *DeclIR = decl->codegen()) {
-        DeclIR->print(errs());
-        fprintf(stderr, "\n");
-      }
+      // if (auto *DeclIR = decl->codegen()) {
+      //   DeclIR->print(errs());
+      //   fprintf(stderr, "\n");
+      // }
     }
     ParseDeclListPrime();
-  } else if (CurTok.type == EOF_TOK) { // FOLLOW(decl_list_prime)
+  } else if (CurTok.mType == EOF_TOK) { // FOLLOW(decl_list_prime)
     // expand by decl_list_prime ::= ε
     // do nothing
   } else { // syntax error
@@ -683,38 +693,38 @@ static void ParseDeclListPrime() {
 }
 
 // decl_list ::= decl decl_list_prime
-static void ParseDeclList() {
+void Parser::ParseDeclList() {
   auto decl = ParseDecl();
   if (decl) {
     fprintf(stderr, "Parsed a top-level variable or function declaration\n");
-    if (auto *DeclIR = decl->codegen()) {
-      DeclIR->print(errs());
-      fprintf(stderr, "\n");
-    }
+    // if (auto *DeclIR = decl->codegen()) {
+    //   DeclIR->print(errs());
+    //   fprintf(stderr, "\n");
+    // }
     ParseDeclListPrime();
   }
 }
 
 // extern ::= "extern" type_spec IDENT "(" params ")" ";"
-static std::unique_ptr<FunctionPrototypeAST> ParseExtern() {
+std::unique_ptr<FunctionPrototypeAST> Parser::ParseExtern() {
   std::string IdName;
   TOKEN PrevTok;
 
-  if (CurTok.type == EXTERN) {
+  if (CurTok.mType == EXTERN) {
     getNextToken(); // eat the EXTERN
 
-    if (CurTok.type == VOID_TOK || CurTok.type == INT_TOK ||
-        CurTok.type == FLOAT_TOK || CurTok.type == BOOL_TOK) {
+    if (CurTok.mType == VOID_TOK || CurTok.mType == INT_TOK ||
+        CurTok.mType == FLOAT_TOK || CurTok.mType == BOOL_TOK) {
 
       PrevTok = CurTok; // to keep track of the type token
       getNextToken();   // eat the VOID_TOK, INT_TOK, BOOL_TOK or FLOAT_TOK
 
-      if (CurTok.type == IDENT) {
+      if (CurTok.mType == IDENT) {
         IdName = CurTok.getIdentifierStr(); // save the identifier name
         auto ident = std::make_unique<VariableASTnode>(CurTok, IdName);
         getNextToken(); // eat the IDENT
 
-        if (CurTok.type ==
+        if (CurTok.mType ==
             LPAR) {       // found '(' - this is an extern function declaration.
           getNextToken(); // eat (
 
@@ -725,16 +735,16 @@ static std::unique_ptr<FunctionPrototypeAST> ParseExtern() {
           else
             fprintf(stderr, "Parsed parameter list for external function\n");
 
-          if (CurTok.type != RPAR) // syntax error
+          if (CurTok.mType != RPAR) // syntax error
             return LogErrorP(
                 CurTok, "expected ')' in closing extern function declaration");
 
           getNextToken(); // eat )
 
-          if (CurTok.type == SC) {
+          if (CurTok.mType == SC) {
             getNextToken(); // eat ";"
             auto Proto = std::make_unique<FunctionPrototypeAST>(
-                IdName, PrevTok.lexeme, std::move(P));
+                IdName, PrevTok.mLexeme, std::move(P));
             return Proto;
           } else
             return LogErrorP(
@@ -755,21 +765,22 @@ static std::unique_ptr<FunctionPrototypeAST> ParseExtern() {
 
 // extern_list_prime ::= extern extern_list_prime
 //                   |  ε
-static void ParseExternListPrime() {
+void Parser::ParseExternListPrime() {
 
-  if (CurTok.type == EXTERN) { // FIRST(extern)
+  if (CurTok.mType == EXTERN) { // FIRST(extern)
     if (auto Extern = ParseExtern()) {
       fprintf(stderr,
               "Parsed a top-level external function declaration -- 2\n");
-      if (auto *ExternIR = Extern->codegen()) {
-        ExternIR->print(errs());
-        fprintf(stderr, "\n");
-      }
+
+      // if (auto *ExternIR = Extern->codegen()) {
+      //   ExternIR->print(errs());
+      //   fprintf(stderr, "\n");
+      // }
     }
     ParseExternListPrime();
-  } else if (CurTok.type == VOID_TOK || CurTok.type == INT_TOK ||
-             CurTok.type == FLOAT_TOK ||
-             CurTok.type == BOOL_TOK) { // FOLLOW(extern_list_prime)
+  } else if (CurTok.mType == VOID_TOK || CurTok.mType == INT_TOK ||
+             CurTok.mType == FLOAT_TOK ||
+             CurTok.mType == BOOL_TOK) { // FOLLOW(extern_list_prime)
     // expand by decl_list_prime ::= ε
     // do nothing
   } else { // syntax error
@@ -778,16 +789,18 @@ static void ParseExternListPrime() {
 }
 
 // extern_list ::= extern extern_list_prime
-static void ParseExternList() {
+void Parser::ParseExternList() {
   auto Extern = ParseExtern();
   if (Extern) {
     fprintf(stderr, "Parsed a top-level external function declaration -- 1\n");
-    if (auto *ExternIR = Extern->codegen()) {
-      ExternIR->print(errs());
-      fprintf(stderr, "\n");
-    }
+
+    // TODO: remove the code generation code from here 
+    // if (auto *ExternIR = Extern->codegen()) {
+    //   ExternIR->print(errs());
+    //   fprintf(stderr, "\n");
+    // }
     // fprintf(stderr, "Current token: %s \n", CurTok.lexeme.c_str());
-    if (CurTok.type == EXTERN)
+    if (CurTok.mType == EXTERN)
       ParseExternListPrime();
   }
 }
