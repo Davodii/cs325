@@ -28,6 +28,9 @@
 #include "ast_visitor.h"
 #include "symbol_table.h"
 
+using namespace llvm;
+using namespace llvm::sys;
+
 // TODO: codegen() and to_string() and getType() and getValue() here
 
 extern llvm::LLVMContext TheContext;

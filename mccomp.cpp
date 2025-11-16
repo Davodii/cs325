@@ -4,6 +4,7 @@
 
 #include <cstdio>
 #include <iostream>
+#include <vector>
 
 int main(int argc, char **argv) {
   if (argc != 2) {
@@ -18,18 +19,26 @@ int main(int argc, char **argv) {
   Parser parser(lexer);
 
   // Run parser to build the AST
-  auto ast = parser.parse();
+  std::vector<std::unique_ptr<ASTnode>> ast;
+  try {
+    ast = parser.parse();
+  } catch (const ParseError &e) {
+    fprintf(stderr, "%s\n", e.what());
+    return 2;
+  }
   fprintf(stderr, "Parsing finished!\n");
 
   // Initialize code generation
   TheModule = std::make_unique<Module>("mini-c", TheContext);
 
   // Generate code from AST
-  for (const auto& node : ast) {
-    if (node) {
-      node->codegen();
-    }
-  }
+  // for (const auto& node : ast) {
+  //   if (node) {
+  //     node->codegen();
+  //   }
+  // }
+
+  // TODO: Use CodegenVisitor to generate code
 
   // Print IR
   printf(
