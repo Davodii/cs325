@@ -15,6 +15,8 @@ Lexer::~Lexer() {
   }
 }
 
+// TODO: Create a lexer exception class to throw instead of using exit()
+
 const std::string TOKEN::getIdentifierStr() const {
   if (mType != IDENT) {
     fprintf(stderr, "%d:%d Error: %s\n", mLineNo, mColumnNo,

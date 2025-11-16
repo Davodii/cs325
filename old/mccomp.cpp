@@ -533,18 +533,18 @@ public:
 class FunctionPrototypeAST {
   std::string Name;
   std::string Type;
-  std::vector<std::unique_ptr<ParamAST>> Params; // vector of parameters
+  std::vector<std::unique_ptr<ParamAST>> mParams; // vector of parameters
 
 public:
   FunctionPrototypeAST(const std::string &name, const std::string &type,
                        std::vector<std::unique_ptr<ParamAST>> params)
-      : Name(name), Type(type), Params(std::move(params)) {}
+      : Name(name), Type(type), mParams(std::move(params)) {}
 
   Function *codegen();
   const std::string &getName() const { return Name; }
   const std::string &getType() const { return Type; }
-  int getSize() const { return Params.size(); }
-  std::vector<std::unique_ptr<ParamAST>> &getParams() { return Params; }
+  int getSize() const { return mParams.size(); }
+  std::vector<std::unique_ptr<ParamAST>> &getParams() { return mParams; }
 };
 
 class ExprAST : public ASTnode {
@@ -562,13 +562,13 @@ public:
 
 /// BlockAST - Class for a block with declarations followed by statements
 class BlockAST : public ASTnode {
-  std::vector<std::unique_ptr<VarDeclAST>> LocalDecls; // vector of local decls
-  std::vector<std::unique_ptr<ASTnode>> Stmts;         // vector of statements
+  std::vector<std::unique_ptr<VarDeclAST>> mLocalDecls; // vector of local decls
+  std::vector<std::unique_ptr<ASTnode>> mStmts;         // vector of statements
 
 public:
   BlockAST(std::vector<std::unique_ptr<VarDeclAST>> localDecls,
            std::vector<std::unique_ptr<ASTnode>> stmts)
-      : LocalDecls(std::move(localDecls)), Stmts(std::move(stmts)) {}
+      : mLocalDecls(std::move(localDecls)), mStmts(std::move(stmts)) {}
   // BasicBlock *codegen();
   Value *codegen(Function *TheFunction);
   Value *codegen();

@@ -4,20 +4,22 @@
 #include <memory>
 #include <vector>
 #include <string>
-
+#include <cassert>
 #include "lexer.h"
-// #include "ast_visitor.h"
 
 enum TYPE {
   INT,
   FLOAT,
   BOOL,
+  IDENT,
 };
 
 // TODO: Why do we have this empty enum?
 enum IDENT_TYPE { 
-  IDENTIFIER = 0,
-  FUNCTION = 1,
+  LOCAL,      // Local variable
+  PARAMETER,  // Function parameter
+  FUNCTION,   // Function
+  GLOBAL,     // Global variable
 };
 
 /**
@@ -95,19 +97,25 @@ private:
 /**
  * @brief Class for referencing a variable (i.e. identifier).
  * 
+ * Only used for variable references in expressions.
+ * 
  */
 class VariableASTnode : public ExprAST {
 public:
-  // TODO: Should not just be assiging mVarType to IDENTIFIER always.
   VariableASTnode(const TOKEN &tok, const std::string &name)
-      : mToken(tok), mName(name), mVarType(IDENT_TYPE::IDENTIFIER)  {}
+      : mToken(tok), mName(name)  {}
   const std::string &getName() const { return mName; }
-  TYPE getType();
-  const IDENT_TYPE getVarType() const { return mVarType; }
+  TYPE getType() const {
+    // Ensure that the variable has been resolved before getting its type
+    assert(resolvedSymbol && "Variable not resolved before semantic resolution");
+    return resolvedSymbol->mType;
+  };
+
+  Symbol* resolvedSymbol;
+
 private:
   TOKEN mToken;
   std::string mName;
-  IDENT_TYPE mVarType;
 };
 
 /**
@@ -164,6 +172,18 @@ private:
 };
 
 /**
+ * @brief Class for function arguments in a function call.
+ * 
+ */
+class ArgsAST : public ExprAST {
+public:
+  ArgsAST(std::vector<std::unique_ptr<ExprAST>> args)
+      : ArgsList(std::move(args)) {}
+private:
+  std::vector<std::unique_ptr<ExprAST>> ArgsList;
+};
+
+/**
  * @brief Class for a function call expression.
  * 
  */
@@ -178,30 +198,20 @@ private:
 };
 
 /**
- * @brief Class for function arguments in a function call.
- * 
- */
-class ArgsAST : public ExprAST {
-public:
-  ArgsAST(std::vector<std::unique_ptr<ExprAST>> args)
-      : ArgsList(std::move(args)) {}
-private:
-  std::vector<std::unique_ptr<ExprAST>> ArgsList;
-};
-
-/**
  * @brief Class for a function parameter.
  * 
  */
 class ParamAST {
-  std::string Name;
-  TYPE Type;
-
 public:
   ParamAST(const std::string &name, TYPE type)
-      : Name(name), Type(type) {}
-  const std::string &getName() const { return Name; }
-  TYPE getType() { return Type; }
+      : mName(name), mType(type) {}
+  const std::string &getName() const { return mName; }
+  TYPE getType() { return mType; }
+
+  Symbol* symbol;
+private:
+  std::string mName;
+  TYPE mType;
 };
 
 /**
@@ -209,14 +219,16 @@ public:
  * 
  */
 class VarDeclAST : public DeclAST {
-  std::string Name;
-  TYPE Type;
-
 public:
   VarDeclAST(const std::string &name, TYPE type)
-      : Name(name), Type(type) {}
-  TYPE getType() { return Type; }
-  const std::string &getName() const { return Name; }
+      : mName(name), mType(type) {}
+  TYPE getType() { return mType; }
+  const std::string &getName() const { return mName; }
+
+  Symbol* symbol;
+private:
+  std::string mName;
+  TYPE mType;
 };
 
 /**
@@ -224,14 +236,16 @@ public:
  * 
  */
 class GlobVarDeclAST : public DeclAST {
-  std::string Name;
-  TYPE Type;
-
 public:
   GlobVarDeclAST(const std::string &name, TYPE type)
-      : Name(name), Type(type) {}
-  TYPE getType() { return Type; }
-  const std::string &getName() const { return Name; }
+      : mName(name), mType(type) {}
+  TYPE getType() { return mType; }
+  const std::string &getName() const { return mName; }
+
+  Symbol* symbol;
+private:
+  std::string mName;
+  TYPE mType;
 };
 
 /**
@@ -239,33 +253,21 @@ public:
  * 
  */
 class FunctionPrototypeAST {
-  std::string Name;
-  TYPE Type;
-  std::vector<std::unique_ptr<ParamAST>> Params; // vector of parameters
-
 public:
   FunctionPrototypeAST(const std::string &name, TYPE type,
                        std::vector<std::unique_ptr<ParamAST>> params)
-      : Name(name), Type(type), Params(std::move(params)) {}
+      : mName(name), mType(type), mParams(std::move(params)) {}
 
-  const std::string &getName() const { return Name; }
-  TYPE getType() { return Type; }
-  int getSize() const { return Params.size(); }
-  std::vector<std::unique_ptr<ParamAST>> &getParams() { return Params; }
-};
+  const std::string &getName() const { return mName; }
+  TYPE getType() { return mType; }
+  int getSize() const { return mParams.size(); }
+  std::vector<std::unique_ptr<ParamAST>> &getParams() { return mParams; }
 
-/**
- * @brief Class for a block of statements.
- * 
- */
-class BlockAST : public ASTnode {
-  std::vector<std::unique_ptr<VarDeclAST>> LocalDecls; // vector of local decls
-  std::vector<std::unique_ptr<ASTnode>> Stmts;         // vector of statements
-
-public:
-  BlockAST(std::vector<std::unique_ptr<VarDeclAST>> localDecls,
-           std::vector<std::unique_ptr<ASTnode>> stmts)
-      : LocalDecls(std::move(localDecls)), Stmts(std::move(stmts)) {}
+  Symbol* symbol;
+private:
+  std::string mName;
+  TYPE mType;
+  std::vector<std::unique_ptr<ParamAST>> mParams;
 };
 
 /**
@@ -273,13 +275,27 @@ public:
  * 
  */
 class FunctionDeclAST : public DeclAST {
-  std::unique_ptr<FunctionPrototypeAST> Proto;
-  std::unique_ptr<BlockAST> Block;
-
 public:
-  FunctionDeclAST(std::unique_ptr<FunctionPrototypeAST> Proto,
-                  std::unique_ptr<BlockAST> Block)
-      : Proto(std::move(Proto)), Block(std::move(Block)) {}
+  FunctionDeclAST(std::unique_ptr<FunctionPrototypeAST> mProto,
+                  std::unique_ptr<BlockAST> mBlock)
+      : mProto(std::move(mProto)), mBlock(std::move(mBlock)) {}
+private:
+  std::unique_ptr<FunctionPrototypeAST> mProto;
+  std::unique_ptr<BlockAST> mBlock;
+};
+
+/**
+ * @brief Class for a block of statements.
+ * 
+ */
+class BlockAST : public ASTnode {
+public:
+  BlockAST(std::vector<std::unique_ptr<VarDeclAST>> localDecls,
+           std::vector<std::unique_ptr<ASTnode>> stmts)
+      : mLocalDecls(std::move(localDecls)), mStmts(std::move(stmts)) {}
+private:
+  std::vector<std::unique_ptr<VarDeclAST>> mLocalDecls; // vector of local decls
+  std::vector<std::unique_ptr<ASTnode>> mStmts;         // vector of statements
 };
 
 /**
@@ -287,13 +303,13 @@ public:
  * 
  */
 class IfExprAST : public ASTnode {
-  std::unique_ptr<ExprAST> Condition;
-  std::unique_ptr<ASTnode> Then, Else;
-
 public:
   IfExprAST(std::unique_ptr<ExprAST> condition, std::unique_ptr<ASTnode> then,
             std::unique_ptr<ASTnode> _else)
-      : Condition(std::move(condition)), Then(std::move(then)), Else(std::move(_else)) {}
+      : mCondition(std::move(condition)), mThen(std::move(then)), mElse(std::move(_else)) {}
+private:
+  std::unique_ptr<ExprAST> mCondition;
+  std::unique_ptr<ASTnode> mThen, mElse;
 };
 
 /**
@@ -301,12 +317,12 @@ public:
  * 
  */
 class WhileExprAST : public ASTnode {
-  std::unique_ptr<ExprAST> Condition;
-  std::unique_ptr<ASTnode> Body;
-
 public:
   WhileExprAST(std::unique_ptr<ExprAST> condition, std::unique_ptr<ASTnode> body)
-      : Condition(std::move(condition)), Body(std::move(body)) {}
+      : mCondition(std::move(condition)), mBody(std::move(body)) {}
+private:
+  std::unique_ptr<ExprAST> mCondition;
+  std::unique_ptr<ASTnode> mBody;
 };
 
 /**
@@ -314,9 +330,9 @@ public:
  * 
  */
 class ReturnAST : public ASTnode {
-  std::unique_ptr<ExprAST> mExpression;
-
 public:
   ReturnAST(std::unique_ptr<ExprAST> expression) : mExpression(std::move(expression)) {}
+private:
+  std::unique_ptr<ExprAST> mExpression;
 };
 #endif

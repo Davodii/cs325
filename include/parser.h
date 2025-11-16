@@ -8,6 +8,10 @@
 #include <stdexcept>
 #include <string>
 
+/**
+ * @brief Exception class for parse errors.
+ * 
+ */
 class ParseError : public std::exception {
 public:
     ParseError(std::string msg, int line = -1, int col = -1)
@@ -39,19 +43,32 @@ private:
 };
 
 class Parser {
-    Lexer &lexer;
+public:
+    Parser(Lexer &lexer) : mLexer(lexer) {
+        // Prime the pump by getting the first token
+        consumeToken();
+    }
+
+    /**
+     * @brief Parse the entire input and return the AST.
+     * 
+     * @return std::vector<std::unique_ptr<ASTnode>> 
+     */
+    std::vector<std::unique_ptr<ASTnode>> parse();
+private:
+    Lexer &mLexer;
 
     /**
      * @brief The current token being processed.
      * 
      */
-    TOKEN currentToken;
+    TOKEN mCurrentToken;
 
     /**
      * @brief A buffer to hold tokens that have been put back.
      * 
      */
-    std::deque<TOKEN> tokenBuffer;
+    std::deque<TOKEN> mTokenBuffer;
 
     /**
      * @brief Consume the next token from the lexer or from the token buffer.
@@ -95,27 +112,188 @@ class Parser {
     std::unique_ptr<BoolASTnode> ParseBoolExpr();
 
     // --- Expressions ---
+    /**
+     * @brief Parse a primary expression.
+     * 
+     * primary ::= IDENT primary_tail
+     *         | INT_LIT
+     *         | FLOAT_LIT
+     *         | BOOL_LIT
+     *         | "(" expr ")"
+     * 
+     * @return std::unique_ptr<ExprAST> 
+     */
+    std::unique_ptr<ExprAST> ParsePrimary();
+
+    /**
+     * @brief Parse the tail of a primary expression (function call).
+     * 
+     * primary_tail ::= "(" args ")" 
+     *                | ε
+     * 
+     * @param Callee The identifier of the function being called.
+     * @return std::unique_ptr<ExprAST> 
+     */
+    std::unique_ptr<ExprAST> ParsePrimaryTail(std::unique_ptr<VariableASTnode> Callee);
+
+    /**
+     * @brief Parse arguments for a function call.
+     * 
+     * args ::= expr args_tail 
+     *        | ε
+     * 
+     * @return std::vector<std::unique_ptr<ExprAST>> 
+     */
+    std::vector<std::unique_ptr<ExprAST>> ParseArgs();
+
+    /**
+     * @brief Parse the tail of arguments for a function call.
+     * 
+     * args_tail ::= "," expr args_tail 
+     *             | ε
+     * 
+     * @return std::vector<std::unique_ptr<ExprAST>> 
+     */
+    std::vector<std::unique_ptr<ExprAST>> ParseArgsTail();
+
+    /**
+     * @brief Parse a unary expression.
+     * 
+     * unary ::= ("-" | "!") unary
+     *         | primary
+     * 
+     * @return std::unique_ptr<ExprAST> 
+     */
+    std::unique_ptr<ExprAST> ParseUnary();
+
+    /**
+     * @brief Parse a multiplicative expression.
+     * 
+     * mul ::= unary mul_prime
+     * 
+     * @return std::unique_ptr<ExprAST> 
+     */
+    std::unique_ptr<ExprAST> ParseMultiplicative();
+
+    /**
+     * @brief Parse the prime part of a multiplicative expression.
+     * 
+     * mul_prime ::= ("*" | "/" | "%") unary mul_prime 
+     *             | ε
+     * 
+     * @param LHS The left-hand side of the expression.
+     * @return std::unique_ptr<ExprAST> 
+     */
+    std::unique_ptr<ExprAST> ParseMultiplicativePrime(std::unique_ptr<ExprAST> LHS);
+
+    /**
+     * @brief Parse an additive expression.
+     * 
+     * additive ::= multiplicative additive_prime
+     * 
+     * @return std::unique_ptr<ExprAST> 
+     */
+    std::unique_ptr<ExprAST> ParseAdditive();
+
+    /**
+     * @brief Parse the prime part of an additive expression.
+     * 
+     * additive_prime ::= ("+" | "-") multiplicative additive_prime 
+     *                  | ε
+     * 
+     * @param LHS The left-hand side of the expression.
+     * @return std::unique_ptr<ExprAST> 
+     */
+    std::unique_ptr<ExprAST> ParseAdditivePrime(std::unique_ptr<ExprAST> LHS);
+
+    /**
+     * @brief Parse a relational expression.
+     * 
+     * relational ::= additive relational_prime
+     * 
+     * @return std::unique_ptr<ExprAST> 
+     */
+    std::unique_ptr<ExprAST> ParseRelational();
+
+    /**
+     * @brief Parse the prime part of a relational expression.
+     * 
+     * relational_prime ::= ("<" | ">" | "<=" | ">=") additive relational_prime 
+     *                    | ε
+     * 
+     * @param LHS The left-hand side of the expression.
+     * @return std::unique_ptr<ExprAST> 
+     */
+    std::unique_ptr<ExprAST> ParseRelationalPrime(std::unique_ptr<ExprAST> LHS);
+
+    /**
+     * @brief Parse an equality expression.
+     * 
+     * equality ::= relational equality_prime
+     * 
+     * @return std::unique_ptr<ExprAST> 
+     */
+    std::unique_ptr<ExprAST> ParseEquality();
+
+    /**
+     * @brief Parse the prime part of an equality expression.
+     * 
+     * equality_prime ::= ("==" | "!=") relational equality_prime
+     *                  | ε
+     * 
+     * @param LHS The left-hand side of the expression.
+     * @return std::unique_ptr<ExprAST> 
+     */
+    std::unique_ptr<ExprAST> ParseEqualityPrime(std::unique_ptr<ExprAST> LHS);
+
+    /**
+     * @brief Parse a logical AND expression.
+     * 
+     * logical_and ::= equality logical_and_prime
+     * 
+     * @return std::unique_ptr<ExprAST> 
+     */
+    std::unique_ptr<ExprAST> ParseLogicalAnd();
+
+    /**
+     * @brief Parse the prime part of a logical AND expression.
+     * 
+     * logical_and_prime ::= "&&" equality logical_and_prime
+     *                     | ε
+     * 
+     * @param LHS The left-hand side of the expression.
+     * @return std::unique_ptr<ExprAST> 
+     */
+    std::unique_ptr<ExprAST> ParseLogicalAndPrime(std::unique_ptr<ExprAST> LHS);
+
+    /**
+     * @brief Parse a logical OR expression.
+     * 
+     * logical_or ::= logical_and logical_or_prime
+     * 
+     * @return std::unique_ptr<ExprAST> 
+     */
+    std::unique_ptr<ExprAST> ParseLogicalOr();
+
+    /**
+     * @brief Parse the prime part of a logical OR expression.
+     * 
+     * logical_or_prime ::= "||" logical_and logical_or_prime
+     *                    | ε
+     * 
+     * @param LHS The left-hand side of the expression.
+     * @return std::unique_ptr<ExprAST> 
+     */
+    std::unique_ptr<ExprAST> ParseLogicalOrPrime(std::unique_ptr<ExprAST> LHS);
 
     /**
      * @brief Parse an expression.
      * 
-     * expr ::= IDENT "=" expr
-     *     |  rval
+     * expr ::= logical_or
      * 
      * @return std::unique_ptr<ExprAST> 
      */
     std::unique_ptr<ExprAST> ParseExper();
-    
-    
-    /**
-     * @brief Parse an expression statement.
-     * 
-     * expr_stmt ::= expr ";"
-     *           |  ";"
-     * 
-     * @return std::unique_ptr<ExprAST> 
-     */
-    std::unique_ptr<ExprAST> ParseExperStmt();
 
     // --- Declarations ---
     /**
@@ -200,6 +378,8 @@ class Parser {
      */
     std::vector<std::unique_ptr<ASTnode>> ParseStmtList();
     std::vector<std::unique_ptr<ASTnode>> ParseStmtListPrime();
+    
+    // --- Statements ---
 
     /**
      * @brief Parse a single statement.
@@ -213,6 +393,16 @@ class Parser {
      * @return std::unique_ptr<ASTnode> 
      */
     std::unique_ptr<ASTnode> ParseStmt();
+        
+    /**
+     * @brief Parse an expression statement.
+     * 
+     * expr_stmt ::= expr ";"
+     *           |  ";"
+     * 
+     * @return std::unique_ptr<ExprAST> 
+     */
+    std::unique_ptr<ExprAST> ParseExperStmt();
 
     /**
      * @brief Parse a block of statements.
@@ -280,17 +470,6 @@ class Parser {
      * @return std::unique_ptr<FunctionPrototypeAST> 
      */
     std::unique_ptr<FunctionPrototypeAST> ParseExtern();
-
-
-public:
-    Parser(Lexer &lexer);
-
-    /**
-     * @brief Parse the entire input and return the AST.
-     * 
-     * @return std::vector<std::unique_ptr<ASTnode>> 
-     */
-    std::vector<std::unique_ptr<ASTnode>> parse();
 };
 
 #endif

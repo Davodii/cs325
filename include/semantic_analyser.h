@@ -5,9 +5,19 @@
 #include "symbol_table.h"
 
 class SemanticAnalyser {
-    SymbolTable symbolTable;
+public:
+    SemanticAnalyser();
 
-    /// TODO: expand this actually include good error messages
+    /**
+     * @brief Run the semantic analysis on the given AST.
+     * 
+     * @param ast A vector of unique pointers to AST nodes representing the program.
+     */
+    void run(std::vector<std::unique_ptr<ASTnode>> ast);
+private:
+    SymbolTable mSymbolTable;
+
+    /// TODO: expand this to actually include good error messages
     bool hasError = false;
 
     // --- Recursive analysis methods ---
@@ -30,10 +40,6 @@ class SemanticAnalyser {
     void analyseFunctionDeclaration(FunctionDeclAST *functionDeclaration);
 
     /// TODO: add more helper functions as needed
-public:
-    SemanticAnalyser();
-
-    void run(std::vector<std::unique_ptr<ASTnode>> ast);
 };
 
 #endif

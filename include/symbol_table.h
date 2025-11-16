@@ -6,12 +6,15 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <stdexcept>
 
 struct Symbol {
     std::string name;
     TYPE mType;
+    IDENT_TYPE mIdentType;
 
-    // TODO: add pointer to declaration node?
+    // TODO: should we be storing the llvm value here?
+    // llvm::Value* value; // LLVM IR value associated with the symbol
 };
 
 class SymbolTable {
@@ -19,17 +22,33 @@ class SymbolTable {
 public:
     SymbolTable();
 
-    /// Enter a new scope
+    /**
+     * @brief Enter a new scope.
+     * 
+     */
     void enterScope();
 
-    /// Leave the current scope
+    /**
+     * @brief Leave the current scope
+     * 
+     */
     void leaveScope();
 
-    /// Add a new symbol to the current scope. Returns false on re-declaration.
-    /// TODO: this should probably be throwing an error since this is not allowed
+    /**
+     * @brief Add a symbol to the current scope.
+     * 
+     * @param symbol The symbol to add.
+     * @return true if the symbol was added successfully.
+     * @return false if there was a re-declaration in the current scope.
+     */
     bool addSymbol(const Symbol &symbol);
 
-    /// Look up a symbol, searching from inner-most scope outwards.
+    /**
+     * @brief Lookup a symbol by name, searching from the innermost scope to the outermost.
+     * 
+     * @param name The name of the symbol to look up.
+     * @return Symbol* Pointer to the symbol if found, nullptr otherwise.
+     */
     Symbol* lookup(const std::string &name);
 };
 
