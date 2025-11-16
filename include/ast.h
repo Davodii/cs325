@@ -20,41 +20,11 @@ enum IDENT_TYPE {
   FUNCTION = 1,
 };
 
-enum BINARY_OP {
-  // Arithmetic
-  ADD,    // +
-  SUB,    // -
-  MUL,    // *
-  DIV,    // /
-  MOD,    // %
-
-  // Relational
-  LT,     // <
-  GT,     // >
-  LE,     // <=
-  GE,     // >=
-
-  // Logical
-  OR,     // ||
-  AND,    // &&
-
-  // Equality
-  EQ,     // ==
-  NEQ,    // !=
-};
-
-enum UNARY_OP {
-  NEG,    // -
-  NOT,    // !
-};
-
-
 /**
  * @brief Base class for all AST nodes.
  * 
  */
 class ASTnode {
-
 public:
   virtual ~ASTnode() {}
   virtual std::string to_string() const { return ""; };
@@ -65,7 +35,6 @@ public:
  * 
  */
 class DeclAST : public ASTnode {
-
 public:
   virtual ~DeclAST() {}
   virtual std::string to_string() const { return ""; };
@@ -77,10 +46,11 @@ public:
  * 
  */
 class ExprAST : public ASTnode {
-  TYPE mType;
 public:
   virtual ~ExprAST() = default;
   virtual TYPE getType();
+private:
+  TYPE mType;
 };
 
 /**
@@ -88,12 +58,12 @@ public:
  * 
  */
 class IntASTnode : public ExprAST {
+public:
+  IntASTnode(const TOKEN &tok, int val) : mVal(val), mToken(tok) {}
+  const TYPE getType() const { return TYPE::INT; }
+private:
   int mVal;
   TOKEN mToken;
-
-public:
-  IntASTnode(TOKEN tok, int val) : mVal(val), mToken(tok) {}
-  const TYPE getType() const { return TYPE::INT; }
 };
 
 /**
@@ -101,12 +71,12 @@ public:
  * 
  */
 class BoolASTnode : public ExprAST {
+public:
+  BoolASTnode(const TOKEN &tok, bool B) : mBool(B), mToken(tok) {}
+  const TYPE getType() const { return TYPE::BOOL; }
+private:
   bool mBool;
   TOKEN mToken;
-
-public:
-  BoolASTnode(TOKEN tok, bool B) : mBool(B), mToken(tok) {}
-  const TYPE getType() const { return TYPE::BOOL; }
 };
 
 /**
@@ -114,12 +84,12 @@ public:
  * 
  */
 class FloatASTnode : public ExprAST {
+public:
+  FloatASTnode(const TOKEN &tok, double val) : mVal(val), mToken(tok) {}
+  const TYPE getType() const { return TYPE::FLOAT; }
+private:
   double mVal;
   TOKEN mToken;
-
-public:
-  FloatASTnode(TOKEN tok, double mVal) : mVal(mVal), mToken(tok) {}
-  const TYPE getType() const { return TYPE::FLOAT; }
 };
 
 /**
@@ -127,19 +97,17 @@ public:
  * 
  */
 class VariableASTnode : public ExprAST {
-protected:
-  TOKEN mToken;
-  std::string Name;
-
-  // TODO: Why is this here?
-  IDENT_TYPE VarType;
-
 public:
-  VariableASTnode(TOKEN tok, const std::string &Name)
-      : mToken(tok), Name(Name), VarType(IDENT_TYPE::IDENTIFIER)  {}
-  const std::string &getName() const { return Name; }
+  // TODO: Should not just be assiging mVarType to IDENTIFIER always.
+  VariableASTnode(const TOKEN &tok, const std::string &name)
+      : mToken(tok), mName(name), mVarType(IDENT_TYPE::IDENTIFIER)  {}
+  const std::string &getName() const { return mName; }
   TYPE getType();
-  const IDENT_TYPE getVarType() const { return VarType; }
+  const IDENT_TYPE getVarType() const { return mVarType; }
+private:
+  TOKEN mToken;
+  std::string mName;
+  IDENT_TYPE mVarType;
 };
 
 /**
@@ -147,14 +115,15 @@ public:
  * 
  */
 class AssignAST : public ExprAST {
-  std::unique_ptr<VariableASTnode> Variable;
-  std::unique_ptr<ExprAST> Expression;
-
 public:
-  AssignAST(std::unique_ptr<VariableASTnode> variable, std::unique_ptr<ExprAST> expression);
+  AssignAST(std::unique_ptr<VariableASTnode> variable, std::unique_ptr<ExprAST> expression)
+    : mVariable(std::move(variable)), mExpression(std::move(expression)) {}
 
   /// Return the type of the expression
-  const TYPE getType() const { return Expression.get()->getType();};
+  const TYPE getType() const { return mExpression.get()->getType();};
+private:
+  std::unique_ptr<VariableASTnode> mVariable;
+  std::unique_ptr<ExprAST> mExpression;
 };
 
 /**
@@ -162,13 +131,13 @@ public:
  * 
  */
 class BinaryExprAST : public ExprAST {
-  std::unique_ptr<ExprAST> Left;
-  BINARY_OP Op;
-  std::unique_ptr<ExprAST> Right;
-
 public:
-  BinaryExprAST(std::unique_ptr<ExprAST> left, char op, std::unique_ptr<ExprAST> right);
+  BinaryExprAST(std::unique_ptr<ExprAST> left, TOKEN_TYPE op, std::unique_ptr<ExprAST> right)
+    : mLeft(std::move(left)), mOp(op), mRight(std::move(right)) {}
   TYPE getType();
+private:
+  std::unique_ptr<ExprAST> mLeft, mRight;
+  TOKEN_TYPE mOp;
 };
 
 /**
@@ -176,14 +145,22 @@ public:
  * 
  */
 class UnaryExprAST : public ExprAST {
-  UNARY_OP Op;
-  std::unique_ptr<ExprAST> Expression;
-
 public:
-  UnaryExprAST(UNARY_OP op, std::unique_ptr<ExprAST> expression);
+  UnaryExprAST(TOKEN_TYPE op, std::unique_ptr<ExprAST> expression)
+    : mOp(op), mExpression(std::move(expression)) {}
   
-  // Unary expression should not change (promote or demote values).
-  const TYPE getType() const { return Expression.get()->getType();};
+  /**
+   * @brief Get the type of the unary expression.
+   * 
+   * Unary expression type is the same as the type of its expression since
+   * unary operators should not change the type.
+   * 
+   * @return const TYPE 
+   */
+  const TYPE getType() const { return mExpression.get()->getType();};
+private:
+  TOKEN_TYPE mOp;
+  std::unique_ptr<ExprAST> mExpression;
 };
 
 /**
@@ -191,13 +168,13 @@ public:
  * 
  */
 class CallExprAST : public ExprAST {
-  std::unique_ptr<VariableASTnode> Callee;
-  std::vector<std::unique_ptr<ExprAST>> Args;
-
 public:
-  CallExprAST(std::unique_ptr<VariableASTnode> callee, std::vector<std::unique_ptr<ExprAST>> args) : 
-    Callee(std::move(callee)), Args(std::move(args)) {};
-  const TYPE getType() const { return Callee->getType();};
+  CallExprAST(std::unique_ptr<VariableASTnode> callee, std::unique_ptr<ArgsAST> args) : 
+    mCallee(std::move(callee)), mArgs(std::move(args)) {};
+  const TYPE getType() const { return mCallee->getType();};
+private:
+  std::unique_ptr<VariableASTnode> mCallee;
+  std::unique_ptr<ArgsAST> mArgs;
 };
 
 /**
@@ -205,12 +182,11 @@ public:
  * 
  */
 class ArgsAST : public ExprAST {
-  std::unique_ptr<VariableASTnode> Callee;
-  std::vector<std::unique_ptr<ExprAST>> ArgsList;
-
 public:
-  ArgsAST(std::unique_ptr<VariableASTnode> callee, std::vector<std::unique_ptr<ExprAST>> args)
-      : Callee(std::move(callee)), ArgsList(std::move(args)) {}
+  ArgsAST(std::vector<std::unique_ptr<ExprAST>> args)
+      : ArgsList(std::move(args)) {}
+private:
+  std::vector<std::unique_ptr<ExprAST>> ArgsList;
 };
 
 /**
@@ -338,9 +314,9 @@ public:
  * 
  */
 class ReturnAST : public ASTnode {
-  std::unique_ptr<ExprAST> Expression;
+  std::unique_ptr<ExprAST> mExpression;
 
 public:
-  ReturnAST(std::unique_ptr<ExprAST> expression) : Expression(std::move(expression)) {}
+  ReturnAST(std::unique_ptr<ExprAST> expression) : mExpression(std::move(expression)) {}
 };
 #endif
