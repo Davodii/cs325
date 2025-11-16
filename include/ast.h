@@ -6,21 +6,8 @@
 #include <string>
 #include <cassert>
 #include "lexer.h"
-
-enum TYPE {
-  INT,
-  FLOAT,
-  BOOL,
-  IDENT,
-};
-
-// TODO: Why do we have this empty enum?
-enum IDENT_TYPE { 
-  LOCAL,      // Local variable
-  PARAMETER,  // Function parameter
-  FUNCTION,   // Function
-  GLOBAL,     // Global variable
-};
+#include "symbol.h"
+#include "types.h"
 
 /**
  * @brief Base class for all AST nodes.
@@ -108,7 +95,7 @@ public:
   TYPE getType() const {
     // Ensure that the variable has been resolved before getting its type
     assert(resolvedSymbol && "Variable not resolved before semantic resolution");
-    return resolvedSymbol->mType;
+    return resolvedSymbol->type;
   };
 
   Symbol* resolvedSymbol;
@@ -249,6 +236,20 @@ private:
 };
 
 /**
+ * @brief Class for a block of statements.
+ * 
+ */
+class BlockAST : public ASTnode {
+public:
+  BlockAST(std::vector<std::unique_ptr<VarDeclAST>> localDecls,
+           std::vector<std::unique_ptr<ASTnode>> stmts)
+      : mLocalDecls(std::move(localDecls)), mStmts(std::move(stmts)) {}
+private:
+  std::vector<std::unique_ptr<VarDeclAST>> mLocalDecls; // vector of local decls
+  std::vector<std::unique_ptr<ASTnode>> mStmts;         // vector of statements
+};
+
+/**
  * @brief Class for a function declaration's signature.
  * 
  */
@@ -282,20 +283,6 @@ public:
 private:
   std::unique_ptr<FunctionPrototypeAST> mProto;
   std::unique_ptr<BlockAST> mBlock;
-};
-
-/**
- * @brief Class for a block of statements.
- * 
- */
-class BlockAST : public ASTnode {
-public:
-  BlockAST(std::vector<std::unique_ptr<VarDeclAST>> localDecls,
-           std::vector<std::unique_ptr<ASTnode>> stmts)
-      : mLocalDecls(std::move(localDecls)), mStmts(std::move(stmts)) {}
-private:
-  std::vector<std::unique_ptr<VarDeclAST>> mLocalDecls; // vector of local decls
-  std::vector<std::unique_ptr<ASTnode>> mStmts;         // vector of statements
 };
 
 /**

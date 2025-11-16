@@ -1,4 +1,4 @@
-#include "parser.h"
+#include "../include/parser.h"
 
 void Parser::consumeToken() {
   if (mTokenBuffer.empty()) {
@@ -33,7 +33,7 @@ void Parser::putBackToken(TOKEN token) {
 */
 
 static void ReportError(TOKEN tok, const char *Str) {
-  throw ParseError(Str, tok.mLineNo, tok.mColumnNo);
+  throw ParseError(Str, tok.LineNo, tok.ColumnNo);
 }
 
 static void ReportError(const char *Str) {
@@ -41,9 +41,9 @@ static void ReportError(const char *Str) {
 }
 
 static TYPE stringToType(const std::string& s) {
-    if (s == "int") return INT;
-    if (s == "float") return FLOAT;
-    if (s == "bool") return BOOL;
+    if (s == "int") return TYPE::INT;
+    if (s == "float") return TYPE::FLOAT;
+    if (s == "bool") return TYPE::BOOL;
     ReportError("Invalid type string for variable/function declaration");
 }
 
@@ -68,7 +68,7 @@ std::unique_ptr<BoolASTnode> Parser::ParseBoolExpr() {
 std::vector<std::unique_ptr<ParamAST>> Parser::ParseParamListPrime() {
   std::vector<std::unique_ptr<ParamAST>> param_list;
 
-  if (mCurrentToken.mType == COMMA) { // more parameters in list
+  if (mCurrentToken.Type == TOKEN_TYPE::COMMA) { // more parameters in list
     consumeToken();           // eat ","
 
     auto param = ParseParam();
@@ -80,7 +80,7 @@ std::vector<std::unique_ptr<ParamAST>> Parser::ParseParamListPrime() {
         param_list.push_back(std::move(param_list_prime.at(i)));
       }
     }
-  } else if (mCurrentToken.mType == RPAR) { // FOLLOW(param_list_prime)
+  } else if (mCurrentToken.Type == TOKEN_TYPE::RPAR) { // FOLLOW(param_list_prime)
     // expand by param_list_prime ::= ε
     // do nothing
   } else {
@@ -92,11 +92,11 @@ std::vector<std::unique_ptr<ParamAST>> Parser::ParseParamListPrime() {
 
 std::unique_ptr<ParamAST> Parser::ParseParam() {
 
-  std::string Type = mCurrentToken.mLexeme; // keep track of the type of the param
+  std::string Type = mCurrentToken.Lexeme; // keep track of the type of the param
   consumeToken();                   // eat the type token
   std::unique_ptr<ParamAST> P;
 
-  if (mCurrentToken.mType == IDENT) { // parameter declaration
+  if (mCurrentToken.Type == TOKEN_TYPE::IDENT) { // parameter declaration
     std::string Name = mCurrentToken.getIdentifierStr();
     consumeToken(); // eat "IDENT"
   }
@@ -125,23 +125,23 @@ std::vector<std::unique_ptr<ParamAST>> Parser::ParseParams() {
   std::string Type;
   std::string Name = "";
 
-  if (mCurrentToken.mType == INT_TOK || mCurrentToken.mType == FLOAT_TOK ||
-      mCurrentToken.mType == BOOL_TOK) { // FIRST(param_list)
+  if (mCurrentToken.Type == TOKEN_TYPE::INT_TOK || mCurrentToken.Type == TOKEN_TYPE::FLOAT_TOK ||
+      mCurrentToken.Type == TOKEN_TYPE::BOOL_TOK) { // FIRST(param_list)
 
     auto list = ParseParamList();
     for (unsigned i = 0; i < list.size(); i++) {
       param_list.push_back(std::move(list.at(i)));
     }
 
-  } else if (mCurrentToken.mType == VOID_TOK) { // FIRST("void")
+  } else if (mCurrentToken.Type == TOKEN_TYPE::VOID_TOK) { // FIRST("void")
     // void
     // check that the next token is a )
     consumeToken(); // eat 'void'
-    if (mCurrentToken.mType != RPAR) {
+    if (mCurrentToken.Type != TOKEN_TYPE::RPAR) {
       ReportError(mCurrentToken, "expected ')', after 'void' in \
        end of function declaration");
     }
-  } else if (mCurrentToken.mType == RPAR) { // FOLLOW(params)
+  } else if (mCurrentToken.Type == TOKEN_TYPE::RPAR) { // FOLLOW(params)
     // expand by params ::= ε
     // do nothing
   } else {
@@ -216,7 +216,7 @@ std::vector<std::unique_ptr<ParamAST>> Parser::ParseParams() {
 
 
 std::unique_ptr<ExprAST> Parser::ParseExper() {
-  if (mCurrentToken.mType == IDENT) {
+  if (mCurrentToken.Type == TOKEN_TYPE::IDENT) {
     // Go into assignment
     return nullptr;
   }
@@ -225,13 +225,13 @@ std::unique_ptr<ExprAST> Parser::ParseExper() {
 
 std::unique_ptr<ExprAST> Parser::ParseExperStmt() {
 
-  if (mCurrentToken.mType == SC) { // empty statement
+  if (mCurrentToken.Type == TOKEN_TYPE::SC) { // empty statement
     consumeToken();        // eat ;
     return nullptr;
   } else {
     auto expr = ParseExper();
     if (expr) {
-      if (mCurrentToken.mType == SC) {
+      if (mCurrentToken.Type == TOKEN_TYPE::SC) {
         consumeToken(); // eat ;
         return expr;
       } else {
@@ -245,11 +245,11 @@ std::unique_ptr<ExprAST> Parser::ParseExperStmt() {
 
 std::unique_ptr<BlockAST> Parser::ParseElseStmt() {
 
-  if (mCurrentToken.mType == ELSE) { // FIRST(else_stmt)
+  if (mCurrentToken.Type == TOKEN_TYPE::ELSE) { // FIRST(else_stmt)
     // expand by else_stmt  ::= "else" "{" stmt "}"
     consumeToken(); // eat "else"
 
-    if (!(mCurrentToken.mType == LBRA)) {
+    if (!(mCurrentToken.Type == TOKEN_TYPE::LBRA)) {
       ReportError(
           mCurrentToken, "expected { to start else block of if-then-else statment");
     }
@@ -257,14 +257,14 @@ std::unique_ptr<BlockAST> Parser::ParseElseStmt() {
     if (!Else)
       return nullptr;
     return Else;
-  } else if (mCurrentToken.mType == NOT || mCurrentToken.mType == MINUS ||
-             mCurrentToken.mType == PLUS || mCurrentToken.mType == LPAR ||
-             mCurrentToken.mType == IDENT || mCurrentToken.mType == INT_LIT ||
-             mCurrentToken.mType == BOOL_LIT || mCurrentToken.mType == FLOAT_LIT ||
-             mCurrentToken.mType == SC || mCurrentToken.mType == LBRA || mCurrentToken.mType == WHILE ||
-             mCurrentToken.mType == IF || mCurrentToken.mType == ELSE ||
-             mCurrentToken.mType == RETURN ||
-             mCurrentToken.mType == RBRA) { // FOLLOW(else_stmt)
+  } else if (mCurrentToken.Type == TOKEN_TYPE::NOT || mCurrentToken.Type == TOKEN_TYPE::MINUS ||
+             mCurrentToken.Type == TOKEN_TYPE::PLUS || mCurrentToken.Type == TOKEN_TYPE::LPAR ||
+             mCurrentToken.Type == TOKEN_TYPE::IDENT || mCurrentToken.Type == TOKEN_TYPE::INT_LIT ||
+             mCurrentToken.Type == TOKEN_TYPE::BOOL_LIT || mCurrentToken.Type == TOKEN_TYPE::FLOAT_LIT ||
+             mCurrentToken.Type == TOKEN_TYPE::SC || mCurrentToken.Type == TOKEN_TYPE::LBRA || mCurrentToken.Type == TOKEN_TYPE::WHILE ||
+             mCurrentToken.Type == TOKEN_TYPE::IF || mCurrentToken.Type == TOKEN_TYPE::ELSE ||
+             mCurrentToken.Type == TOKEN_TYPE::RETURN ||
+             mCurrentToken.Type == TOKEN_TYPE::RBRA) { // FOLLOW(else_stmt)
     // expand by else_stmt  ::= ε
     // return an empty statement
     return nullptr;
@@ -278,17 +278,17 @@ std::unique_ptr<BlockAST> Parser::ParseElseStmt() {
 
 std::unique_ptr<IfExprAST> Parser::ParseIfStmt() {
   consumeToken(); // eat the if.
-  if (mCurrentToken.mType == LPAR) {
+  if (mCurrentToken.Type == TOKEN_TYPE::LPAR) {
     consumeToken(); // eat (
     // condition.
     auto Cond = ParseExper();
     if (!Cond)
       return nullptr;
-    if (mCurrentToken.mType != RPAR)
+    if (mCurrentToken.Type != TOKEN_TYPE::RPAR)
       ReportError(mCurrentToken, "expected )");
     consumeToken(); // eat )
 
-    if (!(mCurrentToken.mType == LBRA)) {
+    if (!(mCurrentToken.Type == TOKEN_TYPE::LBRA)) {
       ReportError(mCurrentToken, "expected { to start then block of if statment");
     }
 
@@ -308,20 +308,20 @@ std::unique_ptr<IfExprAST> Parser::ParseIfStmt() {
 
 std::unique_ptr<ReturnAST> Parser::ParseReturnStmt() {
   consumeToken(); // eat the return
-  if (mCurrentToken.mType == SC) {
+  if (mCurrentToken.Type == TOKEN_TYPE::SC) {
     consumeToken(); // eat the ;
     // return a null value
     return std::make_unique<ReturnAST>(std::move(nullptr));
-  } else if (mCurrentToken.mType == NOT || mCurrentToken.mType == MINUS ||
-             mCurrentToken.mType == PLUS || mCurrentToken.mType == LPAR ||
-             mCurrentToken.mType == IDENT || mCurrentToken.mType == BOOL_LIT ||
-             mCurrentToken.mType == INT_LIT ||
-             mCurrentToken.mType == FLOAT_LIT) { // FIRST(expr)
+  } else if (mCurrentToken.Type == TOKEN_TYPE::NOT || mCurrentToken.Type == TOKEN_TYPE::MINUS ||
+             mCurrentToken.Type == TOKEN_TYPE::PLUS || mCurrentToken.Type == TOKEN_TYPE::LPAR ||
+             mCurrentToken.Type == TOKEN_TYPE::IDENT || mCurrentToken.Type == TOKEN_TYPE::BOOL_LIT ||
+             mCurrentToken.Type == TOKEN_TYPE::INT_LIT ||
+             mCurrentToken.Type == TOKEN_TYPE::FLOAT_LIT) { // FIRST(expr)
     auto val = ParseExper();
     if (!val)
       return nullptr;
 
-    if (mCurrentToken.mType == SC) {
+    if (mCurrentToken.Type == TOKEN_TYPE::SC) {
       consumeToken(); // eat the ;
       return std::make_unique<ReturnAST>(std::move(val));
     } else
@@ -336,13 +336,13 @@ std::unique_ptr<ReturnAST> Parser::ParseReturnStmt() {
 std::unique_ptr<WhileExprAST> Parser::ParseWhileStmt() {
 
   consumeToken(); // eat the while.
-  if (mCurrentToken.mType == LPAR) {
+  if (mCurrentToken.Type == TOKEN_TYPE::LPAR) {
     consumeToken(); // eat (
     // condition.
     auto Cond = ParseExper();
     if (!Cond)
       return nullptr;
-    if (mCurrentToken.mType != RPAR)
+    if (mCurrentToken.Type != TOKEN_TYPE::RPAR)
       ReportError(mCurrentToken, "expected )");
     consumeToken(); // eat )
 
@@ -357,33 +357,33 @@ std::unique_ptr<WhileExprAST> Parser::ParseWhileStmt() {
 
 std::unique_ptr<ASTnode> Parser::ParseStmt() {
 
-  if (mCurrentToken.mType == NOT || mCurrentToken.mType == MINUS || mCurrentToken.mType == PLUS ||
-      mCurrentToken.mType == LPAR || mCurrentToken.mType == IDENT || mCurrentToken.mType == BOOL_LIT ||
-      mCurrentToken.mType == INT_LIT || mCurrentToken.mType == FLOAT_LIT ||
-      mCurrentToken.mType == SC) { // FIRST(expr_stmt)
+  if (mCurrentToken.Type == TOKEN_TYPE::NOT || mCurrentToken.Type == TOKEN_TYPE::MINUS || mCurrentToken.Type == TOKEN_TYPE::PLUS ||
+      mCurrentToken.Type == TOKEN_TYPE::LPAR || mCurrentToken.Type == TOKEN_TYPE::IDENT || mCurrentToken.Type == TOKEN_TYPE::BOOL_LIT ||
+      mCurrentToken.Type == TOKEN_TYPE::INT_LIT || mCurrentToken.Type == TOKEN_TYPE::FLOAT_LIT ||
+      mCurrentToken.Type == TOKEN_TYPE::SC) { // FIRST(expr_stmt)
     // expand by stmt ::= expr_stmt
     auto expr_stmt = ParseExperStmt();
     fprintf(stderr, "Parsed an expression statement\n");
     return expr_stmt;
-  } else if (mCurrentToken.mType == LBRA) { // FIRST(block)
+  } else if (mCurrentToken.Type == TOKEN_TYPE::LBRA) { // FIRST(block)
     auto block_stmt = ParseBlock();
     if (block_stmt) {
       fprintf(stderr, "Parsed a block\n");
       return block_stmt;
     }
-  } else if (mCurrentToken.mType == IF) { // FIRST(if_stmt)
+  } else if (mCurrentToken.Type == TOKEN_TYPE::IF) { // FIRST(if_stmt)
     auto if_stmt = ParseIfStmt();
     if (if_stmt) {
       fprintf(stderr, "Parsed an if statment\n");
       return if_stmt;
     }
-  } else if (mCurrentToken.mType == WHILE) { // FIRST(while_stmt)
+  } else if (mCurrentToken.Type == TOKEN_TYPE::WHILE) { // FIRST(while_stmt)
     auto while_stmt = ParseWhileStmt();
     if (while_stmt) {
       fprintf(stderr, "Parsed a while statment\n");
       return while_stmt;
     }
-  } else if (mCurrentToken.mType == RETURN) { // FIRST(return_stmt)
+  } else if (mCurrentToken.Type == TOKEN_TYPE::RETURN) { // FIRST(return_stmt)
     auto return_stmt = ParseReturnStmt();
     if (return_stmt) {
       fprintf(stderr, "Parsed a return statment\n");
@@ -415,11 +415,11 @@ std::vector<std::unique_ptr<ASTnode>> Parser::ParseStmtList() {
 
 std::vector<std::unique_ptr<ASTnode>> Parser::ParseStmtListPrime() {
   std::vector<std::unique_ptr<ASTnode>> stmt_list; // vector of statements
-  if (mCurrentToken.mType == NOT || mCurrentToken.mType == MINUS || mCurrentToken.mType == PLUS ||
-      mCurrentToken.mType == LPAR || mCurrentToken.mType == IDENT || mCurrentToken.mType == BOOL_LIT ||
-      mCurrentToken.mType == INT_LIT || mCurrentToken.mType == FLOAT_LIT || mCurrentToken.mType == SC ||
-      mCurrentToken.mType == LBRA || mCurrentToken.mType == WHILE || mCurrentToken.mType == IF ||
-      mCurrentToken.mType == ELSE || mCurrentToken.mType == RETURN) { // FIRST(stmt)
+  if (mCurrentToken.Type == TOKEN_TYPE::NOT || mCurrentToken.Type == TOKEN_TYPE::MINUS || mCurrentToken.Type == TOKEN_TYPE::PLUS ||
+      mCurrentToken.Type == TOKEN_TYPE::LPAR || mCurrentToken.Type == TOKEN_TYPE::IDENT || mCurrentToken.Type == TOKEN_TYPE::BOOL_LIT ||
+      mCurrentToken.Type == TOKEN_TYPE::INT_LIT || mCurrentToken.Type == TOKEN_TYPE::FLOAT_LIT || mCurrentToken.Type == TOKEN_TYPE::SC ||
+      mCurrentToken.Type == TOKEN_TYPE::LBRA || mCurrentToken.Type == TOKEN_TYPE::WHILE || mCurrentToken.Type == TOKEN_TYPE::IF ||
+      mCurrentToken.Type == TOKEN_TYPE::ELSE || mCurrentToken.Type == TOKEN_TYPE::RETURN) { // FIRST(stmt)
     // expand by stmt_list ::= stmt stmt_list_prime
     auto stmt = ParseStmt();
     if (stmt) {
@@ -430,7 +430,7 @@ std::vector<std::unique_ptr<ASTnode>> Parser::ParseStmtListPrime() {
       stmt_list.push_back(std::move(stmt_prime.at(i)));
     }
 
-  } else if (mCurrentToken.mType == RBRA) { // FOLLOW(stmt_list_prime)
+  } else if (mCurrentToken.Type == TOKEN_TYPE::RBRA) { // FOLLOW(stmt_list_prime)
     // expand by stmt_list_prime ::= ε
     // do nothing
   }
@@ -442,8 +442,8 @@ std::vector<std::unique_ptr<VarDeclAST>> Parser::ParseLocalDeclsPrime() {
   std::vector<std::unique_ptr<VarDeclAST>>
       local_decls_prime; // vector of local decls
 
-  if (mCurrentToken.mType == INT_TOK || mCurrentToken.mType == FLOAT_TOK ||
-      mCurrentToken.mType == BOOL_TOK) { // FIRST(local_decl)
+  if (mCurrentToken.Type == TOKEN_TYPE::INT_TOK || mCurrentToken.Type == TOKEN_TYPE::FLOAT_TOK ||
+      mCurrentToken.Type == TOKEN_TYPE::BOOL_TOK) { // FIRST(local_decl)
     auto local_decl = ParseLocalDecl();
     if (local_decl) {
       local_decls_prime.push_back(std::move(local_decl));
@@ -452,12 +452,12 @@ std::vector<std::unique_ptr<VarDeclAST>> Parser::ParseLocalDeclsPrime() {
     for (unsigned i = 0; i < prime.size(); i++) {
       local_decls_prime.push_back(std::move(prime.at(i)));
     }
-  } else if (mCurrentToken.mType == MINUS || mCurrentToken.mType == NOT ||
-             mCurrentToken.mType == LPAR || mCurrentToken.mType == IDENT ||
-             mCurrentToken.mType == INT_LIT || mCurrentToken.mType == FLOAT_LIT ||
-             mCurrentToken.mType == BOOL_LIT || mCurrentToken.mType == SC ||
-             mCurrentToken.mType == LBRA || mCurrentToken.mType == IF || mCurrentToken.mType == WHILE ||
-             mCurrentToken.mType == RETURN) { // FOLLOW(local_decls_prime)
+  } else if (mCurrentToken.Type == TOKEN_TYPE::MINUS || mCurrentToken.Type == TOKEN_TYPE::NOT ||
+             mCurrentToken.Type == TOKEN_TYPE::LPAR || mCurrentToken.Type == TOKEN_TYPE::IDENT ||
+             mCurrentToken.Type == TOKEN_TYPE::INT_LIT || mCurrentToken.Type == TOKEN_TYPE::FLOAT_LIT ||
+             mCurrentToken.Type == TOKEN_TYPE::BOOL_LIT || mCurrentToken.Type == TOKEN_TYPE::SC ||
+             mCurrentToken.Type == TOKEN_TYPE::LBRA || mCurrentToken.Type == TOKEN_TYPE::IF || mCurrentToken.Type == TOKEN_TYPE::WHILE ||
+             mCurrentToken.Type == TOKEN_TYPE::RETURN) { // FOLLOW(local_decls_prime)
     // expand by local_decls_prime ::=  ε
     // do nothing;
   } else {
@@ -476,17 +476,17 @@ std::unique_ptr<VarDeclAST> Parser::ParseLocalDecl() {
   std::string Name = "";
   std::unique_ptr<VarDeclAST> local_decl;
 
-  if (mCurrentToken.mType == INT_TOK || mCurrentToken.mType == FLOAT_TOK ||
-      mCurrentToken.mType == BOOL_TOK) { // FIRST(var_type)
+  if (mCurrentToken.Type == TOKEN_TYPE::INT_TOK || mCurrentToken.Type == TOKEN_TYPE::FLOAT_TOK ||
+      mCurrentToken.Type == TOKEN_TYPE::BOOL_TOK) { // FIRST(var_type)
     PrevTok = mCurrentToken;
     consumeToken(); // eat 'int' or 'float or 'bool'
-    if (mCurrentToken.mType == IDENT) {
-      Type = PrevTok.mLexeme;
+    if (mCurrentToken.Type == TOKEN_TYPE::IDENT) {
+      Type = PrevTok.Lexeme;
       Name = mCurrentToken.getIdentifierStr(); // save the identifier name
       local_decl = std::make_unique<VarDeclAST>(Name, stringToType(Type));
 
       consumeToken(); // eat 'IDENT'
-      if (mCurrentToken.mType != SC) {
+      if (mCurrentToken.Type != TOKEN_TYPE::SC) {
         ReportError(mCurrentToken, "Expected ';' to end local variable declaration");
       }
       consumeToken(); // eat ';'
@@ -501,8 +501,8 @@ std::unique_ptr<VarDeclAST> Parser::ParseLocalDecl() {
 std::vector<std::unique_ptr<VarDeclAST>> Parser::ParseLocalDecls() {
   std::vector<std::unique_ptr<VarDeclAST>> local_decls; // vector of local decls
 
-  if (mCurrentToken.mType == INT_TOK || mCurrentToken.mType == FLOAT_TOK ||
-      mCurrentToken.mType == BOOL_TOK) { // FIRST(local_decl)
+  if (mCurrentToken.Type == TOKEN_TYPE::INT_TOK || mCurrentToken.Type == TOKEN_TYPE::FLOAT_TOK ||
+      mCurrentToken.Type == TOKEN_TYPE::BOOL_TOK) { // FIRST(local_decl)
 
     auto local_decl = ParseLocalDecl();
     if (local_decl) {
@@ -513,12 +513,12 @@ std::vector<std::unique_ptr<VarDeclAST>> Parser::ParseLocalDecls() {
       local_decls.push_back(std::move(local_decls_prime.at(i)));
     }
 
-  } else if (mCurrentToken.mType == MINUS || mCurrentToken.mType == NOT ||
-             mCurrentToken.mType == LPAR || mCurrentToken.mType == IDENT ||
-             mCurrentToken.mType == INT_LIT || mCurrentToken.mType == RETURN ||
-             mCurrentToken.mType == FLOAT_LIT || mCurrentToken.mType == BOOL_LIT ||
-             mCurrentToken.mType == COMMA || mCurrentToken.mType == LBRA || mCurrentToken.mType == IF ||
-             mCurrentToken.mType == WHILE) { // FOLLOW(local_decls)
+  } else if (mCurrentToken.Type == TOKEN_TYPE::MINUS || mCurrentToken.Type == TOKEN_TYPE::NOT ||
+             mCurrentToken.Type == TOKEN_TYPE::LPAR || mCurrentToken.Type == TOKEN_TYPE::IDENT ||
+             mCurrentToken.Type == TOKEN_TYPE::INT_LIT || mCurrentToken.Type == TOKEN_TYPE::RETURN ||
+             mCurrentToken.Type == TOKEN_TYPE::FLOAT_LIT || mCurrentToken.Type == TOKEN_TYPE::BOOL_LIT ||
+             mCurrentToken.Type == TOKEN_TYPE::COMMA || mCurrentToken.Type == TOKEN_TYPE::LBRA || mCurrentToken.Type == TOKEN_TYPE::IF ||
+             mCurrentToken.Type == TOKEN_TYPE::WHILE) { // FOLLOW(local_decls)
                                      // do nothing
   } else {
     ReportError(
@@ -540,7 +540,7 @@ std::unique_ptr<BlockAST> Parser::ParseBlock() {
   fprintf(stderr, "Parsed a set of local variable declaration\n");
   stmt_list = ParseStmtList();
   fprintf(stderr, "Parsed a list of statements\n");
-  if (mCurrentToken.mType == RBRA)
+  if (mCurrentToken.Type == TOKEN_TYPE::RBRA)
     consumeToken(); // eat '}'
   else {            // syntax error
     ReportError(mCurrentToken, "expected '}' , close body of block");
@@ -557,28 +557,28 @@ std::unique_ptr<DeclAST> Parser::ParseDecl() {
 
   TOKEN PrevTok = mCurrentToken; // to keep track of the type token
 
-  if (mCurrentToken.mType == VOID_TOK || mCurrentToken.mType == INT_TOK ||
-      mCurrentToken.mType == FLOAT_TOK || mCurrentToken.mType == BOOL_TOK) {
+  if (mCurrentToken.Type == TOKEN_TYPE::VOID_TOK || mCurrentToken.Type == TOKEN_TYPE::INT_TOK ||
+      mCurrentToken.Type == TOKEN_TYPE::FLOAT_TOK || mCurrentToken.Type == TOKEN_TYPE::BOOL_TOK) {
     consumeToken(); // eat the VOID_TOK, INT_TOK, BOOL_TOK or FLOAT_TOK
 
     IdName = mCurrentToken.getIdentifierStr(); // save the identifier name
 
-    if (mCurrentToken.mType == IDENT) {
+    if (mCurrentToken.Type == TOKEN_TYPE::IDENT) {
       auto ident = std::make_unique<VariableASTnode>(mCurrentToken, IdName);
       consumeToken(); // eat the IDENT
-      if (mCurrentToken.mType ==
-          SC) {         // found ';' then this is a global variable declaration.
+      if (mCurrentToken.Type ==
+          TOKEN_TYPE::SC) {         // found ';' then this is a global variable declaration.
         consumeToken(); // eat ;
         fprintf(stderr, "Parsed a variable declaration\n");
 
-        if (PrevTok.mType != VOID_TOK)
+        if (PrevTok.Type != TOKEN_TYPE::VOID_TOK)
           return std::make_unique<GlobVarDeclAST>(IdName,
-                                                  stringToType(PrevTok.mLexeme));
+                                                  stringToType(PrevTok.Lexeme));
         else
           ReportError(PrevTok,
                           "Cannot have variable declaration with type 'void'");
-      } else if (mCurrentToken.mType ==
-                 LPAR) { // found '(' then this is a function declaration.
+      } else if (mCurrentToken.Type ==
+                 TOKEN_TYPE::LPAR) { // found '(' then this is a function declaration.
         consumeToken();  // eat (
 
         auto P =
@@ -586,11 +586,11 @@ std::unique_ptr<DeclAST> Parser::ParseDecl() {
         // if (P.size() == 0) return nullptr;
         fprintf(stderr, "Parsed parameter list for function\n");
 
-        if (mCurrentToken.mType != RPAR) // syntax error
+        if (mCurrentToken.Type != TOKEN_TYPE::RPAR) // syntax error
           ReportError(mCurrentToken, "expected ')' in function declaration");
 
         consumeToken();          // eat )
-        if (mCurrentToken.mType != LBRA) // syntax error
+        if (mCurrentToken.Type != TOKEN_TYPE::LBRA) // syntax error
           ReportError(
               mCurrentToken, "expected '{' in function declaration, function body");
 
@@ -607,7 +607,7 @@ std::unique_ptr<DeclAST> Parser::ParseDecl() {
         fprintf(stderr, "Parsed a function declaration\n");
 
         auto Proto = std::make_unique<FunctionPrototypeAST>(
-            IdName, stringToType(PrevTok.mLexeme), std::move(P));
+            IdName, stringToType(PrevTok.Lexeme), std::move(P));
         return std::make_unique<FunctionDeclAST>(std::move(Proto),
                                                  std::move(B));
       } else
@@ -626,8 +626,8 @@ std::vector<std::unique_ptr<DeclAST>> Parser::ParseDeclListPrime() {
   // TODO: change return type to vector of unique ptr to DeclAST
   // and implement the collection of decls in this function
 
-  if (mCurrentToken.mType == VOID_TOK || mCurrentToken.mType == INT_TOK ||
-      mCurrentToken.mType == FLOAT_TOK || mCurrentToken.mType == BOOL_TOK) { // FIRST(decl)
+  if (mCurrentToken.Type == TOKEN_TYPE::VOID_TOK || mCurrentToken.Type == TOKEN_TYPE::INT_TOK ||
+      mCurrentToken.Type == TOKEN_TYPE::FLOAT_TOK || mCurrentToken.Type == TOKEN_TYPE::BOOL_TOK) { // FIRST(decl)
 
     if (auto decl = ParseDecl()) {
       fprintf(stderr, "Parsed a top-level variable or function declaration\n");
@@ -637,7 +637,7 @@ std::vector<std::unique_ptr<DeclAST>> Parser::ParseDeclListPrime() {
       // }
     }
     ParseDeclListPrime();
-  } else if (mCurrentToken.mType == EOF_TOK) { // FOLLOW(decl_list_prime)
+  } else if (mCurrentToken.Type == TOKEN_TYPE::EOF_TOK) { // FOLLOW(decl_list_prime)
     // expand by decl_list_prime ::= ε
     // do nothing
   } else { // syntax error
@@ -665,22 +665,22 @@ std::unique_ptr<FunctionPrototypeAST> Parser::ParseExtern() {
   std::string IdName;
   TOKEN PrevTok;
 
-  if (mCurrentToken.mType == EXTERN) {
+  if (mCurrentToken.Type == TOKEN_TYPE::EXTERN) {
     consumeToken(); // eat the EXTERN
 
-    if (mCurrentToken.mType == VOID_TOK || mCurrentToken.mType == INT_TOK ||
-        mCurrentToken.mType == FLOAT_TOK || mCurrentToken.mType == BOOL_TOK) {
+    if (mCurrentToken.Type == TOKEN_TYPE::VOID_TOK || mCurrentToken.Type == TOKEN_TYPE::INT_TOK ||
+        mCurrentToken.Type == TOKEN_TYPE::FLOAT_TOK || mCurrentToken.Type == TOKEN_TYPE::BOOL_TOK) {
 
       PrevTok = mCurrentToken; // to keep track of the type token
       consumeToken();   // eat the VOID_TOK, INT_TOK, BOOL_TOK or FLOAT_TOK
 
-      if (mCurrentToken.mType == IDENT) {
+      if (mCurrentToken.Type == TOKEN_TYPE::IDENT) {
         IdName = mCurrentToken.getIdentifierStr(); // save the identifier name
         auto ident = std::make_unique<VariableASTnode>(mCurrentToken, IdName);
         consumeToken(); // eat the IDENT
 
-        if (mCurrentToken.mType ==
-            LPAR) {       // found '(' - this is an extern function declaration.
+        if (mCurrentToken.Type ==
+            TOKEN_TYPE::LPAR) {       // found '(' - this is an extern function declaration.
           consumeToken(); // eat (
 
           auto P =
@@ -690,16 +690,16 @@ std::unique_ptr<FunctionPrototypeAST> Parser::ParseExtern() {
           else
             fprintf(stderr, "Parsed parameter list for external function\n");
 
-          if (mCurrentToken.mType != RPAR) // syntax error
+          if (mCurrentToken.Type != TOKEN_TYPE::RPAR) // syntax error
             ReportError(
                 mCurrentToken, "expected ')' in closing extern function declaration");
 
           consumeToken(); // eat )
 
-          if (mCurrentToken.mType == SC) {
+          if (mCurrentToken.Type == TOKEN_TYPE::SC) {
             consumeToken(); // eat ";"
             auto Proto = std::make_unique<FunctionPrototypeAST>(
-                IdName, stringToType(PrevTok.mLexeme), std::move(P));
+                IdName, stringToType(PrevTok.Lexeme), std::move(P));
             return Proto;
           } else
             ReportError(
@@ -720,7 +720,7 @@ std::unique_ptr<FunctionPrototypeAST> Parser::ParseExtern() {
 
 std::vector<std::unique_ptr<FunctionPrototypeAST>> Parser::ParseExternListPrime() {
 
-  if (mCurrentToken.mType == EXTERN) { // FIRST(extern)
+  if (mCurrentToken.Type == TOKEN_TYPE::EXTERN) { // FIRST(extern)
     if (auto Extern = ParseExtern()) {
       fprintf(stderr,
               "Parsed a top-level external function declaration -- 2\n");
@@ -731,9 +731,9 @@ std::vector<std::unique_ptr<FunctionPrototypeAST>> Parser::ParseExternListPrime(
       // }
     }
     ParseExternListPrime();
-  } else if (mCurrentToken.mType == VOID_TOK || mCurrentToken.mType == INT_TOK ||
-             mCurrentToken.mType == FLOAT_TOK ||
-             mCurrentToken.mType == BOOL_TOK) { // FOLLOW(extern_list_prime)
+  } else if (mCurrentToken.Type == TOKEN_TYPE::VOID_TOK || mCurrentToken.Type == TOKEN_TYPE::INT_TOK ||
+             mCurrentToken.Type == TOKEN_TYPE::FLOAT_TOK ||
+             mCurrentToken.Type == TOKEN_TYPE::BOOL_TOK) { // FOLLOW(extern_list_prime)
     // expand by decl_list_prime ::= ε
     // do nothing
   } else { // syntax error
@@ -752,7 +752,7 @@ std::vector<std::unique_ptr<FunctionPrototypeAST>> Parser::ParseExternList() {
     //   fprintf(stderr, "\n");
     // }
     // fprintf(stderr, "Current token: %s \n", CurTok.lexeme.c_str());
-    if (mCurrentToken.mType == EXTERN)
+    if (mCurrentToken.Type == TOKEN_TYPE::EXTERN)
       ParseExternListPrime();
   }
 }
@@ -774,8 +774,8 @@ void parser() {
 std::vector<std::unique_ptr<ASTnode>> Parser::parse() {
     std::vector<std::unique_ptr<ASTnode>> decls;
 
-    while (mCurrentToken.mType != EOF_TOK) {
-        if (mCurrentToken.mType == EXTERN) {
+    while (mCurrentToken.Type != TOKEN_TYPE::EOF_TOK) {
+        if (mCurrentToken.Type == TOKEN_TYPE::EXTERN) {
             auto ext = ParseExtern();
             // Note: The current AST structure doesn't handle externs in the main AST vector.
             // This is a design issue in the original project.
@@ -784,7 +784,7 @@ std::vector<std::unique_ptr<ASTnode>> Parser::parse() {
             auto decl = ParseDecl();
             if (decl) {
                 decls.push_back(std::move(decl));
-            } else if (mCurrentToken.mType != EOF_TOK) {
+            } else if (mCurrentToken.Type != TOKEN_TYPE::EOF_TOK) {
                 // If ParseDecl fails, consume a token to avoid an infinite loop.
                 consumeToken();
             }

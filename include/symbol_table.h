@@ -7,15 +7,7 @@
 #include <map>
 #include <memory>
 #include <stdexcept>
-
-struct Symbol {
-    std::string name;
-    TYPE mType;
-    IDENT_TYPE mIdentType;
-
-    // TODO: should we be storing the llvm value here?
-    // llvm::Value* value; // LLVM IR value associated with the symbol
-};
+#include "symbol.h"
 
 class SymbolTable {
     std::vector<std::map<std::string, Symbol>> scopeStack;

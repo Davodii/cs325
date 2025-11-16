@@ -4,7 +4,7 @@
 #include <string>
 
 // The lexer returns one of these for known things.
-enum TOKEN_TYPE {
+enum class TOKEN_TYPE {
 
   IDENT = -1,        // [a-zA-Z_][a-zA-Z_0-9]*
   ASSIGN = int('='), // '='
@@ -70,10 +70,13 @@ enum TOKEN_TYPE {
 class TOKEN {
 public:
   TOKEN() = default;
-  int mType = -100;
-  std::string mLexeme;
-  int mLineNo;
-  int mColumnNo;
+  TOKEN_TYPE Type = TOKEN_TYPE::INVALID;
+
+  // TODO: check if we need to change the names to be camel case or pascal case
+
+  std::string Lexeme;
+  int LineNo;
+  int ColumnNo;
   const std::string getIdentifierStr() const;
   const int getIntVal() const;
   const float getFloatVal() const;
