@@ -11,44 +11,32 @@
 class ParseError : public std::exception {
 public:
     ParseError(std::string msg, int line = -1, int col = -1)
-        : message(std::move(msg)), lineNumber(line), columnNumber(col) {
+        : mMessage(std::move(msg)), mLineNumber(line), mColumnNumber(col) {
         if (line != -1 && col != -1) {
-            formattedMessage = std::to_string(lineNumber) + ":" + std::to_string(columnNumber) + " Error: " + message;
+            mFormattedMessage = std::to_string(mLineNumber) + ":" + std::to_string(mColumnNumber) + " Error: " + mMessage;
         } else {
-            formattedMessage = "Error: " + message;
+            mFormattedMessage = "Error: " + mMessage;
         }
     }
 
     const char* what() const noexcept override {
-        return formattedMessage.c_str();
+        return mFormattedMessage.c_str();
     }
 
     int getLineNumber() const {
-        return lineNumber;
+        return mLineNumber;
     }
 
     int getColumnNumber() const {
-        return columnNumber;
+        return mColumnNumber;
     }
 
 private:
-    std::string message;
-    int lineNumber;
-    int columnNumber;
-    std::string formattedMessage;
+    std::string mMessage;
+    int mLineNumber;
+    int mColumnNumber;
+    std::string mFormattedMessage;
 };
-
-/// CurTok/getNextToken - Provide a simple token buffer.  CurTok is the current
-/// token the parser is looking at.  getNextToken reads another token from the
-/// lexer and updates CurTok with its results.
-// extern TOKEN CurTok;
-
-// TOKEN getNextToken();
-// void putBackToken(TOKEN tok);
-
-// TODO: the parser() function is all that is run from the main() function.
-// Maybe we can remove the Parse...() functions froms being publicly available.
-// void parser();
 
 class Parser {
     Lexer &lexer;

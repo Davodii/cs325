@@ -37,7 +37,6 @@ void Parser::putBackToken(TOKEN token) {
 // void putBackToken(TOKEN tok) { tok_buffer.push_front(tok); }
 */
 
-
 [[noreturn]] static void ReportError(TOKEN tok, const char *Str) {
   throw ParseError(Str, tok.mLineNo, tok.mColumnNo);
 }
@@ -242,8 +241,6 @@ std::unique_ptr<ExprAST> Parser::ParseExperStmt() {
   return nullptr;
 }
 
-// else_stmt  ::= "else" block
-//             |  ε
 std::unique_ptr<BlockAST> Parser::ParseElseStmt() {
 
   if (currentToken.mType == ELSE) { // FIRST(else_stmt)

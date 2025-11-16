@@ -6,7 +6,7 @@
 #include <string>
 
 #include "lexer.h"
-#include "ast_visitor.h"
+// #include "ast_visitor.h"
 
 enum TYPE {
   INT,
@@ -16,7 +16,8 @@ enum TYPE {
 
 // TODO: Why do we have this empty enum?
 enum IDENT_TYPE { 
-  IDENTIFIER = 0 
+  IDENTIFIER = 0,
+  FUNCTION = 1,
 };
 
 enum BINARY_OP {
@@ -47,8 +48,11 @@ enum UNARY_OP {
   NOT,    // !
 };
 
-/// ASTnode - Base class for all AST nodes.
-/// Abstract class that provides nothing.
+
+/**
+ * @brief Base class for all AST nodes.
+ * 
+ */
 class ASTnode {
 
 public:
@@ -56,7 +60,10 @@ public:
   virtual std::string to_string() const { return ""; };
 };
 
-/// DeclAST - Base class for declarations, variables and functions
+/**
+ * @brief Base class for declaration AST nodes.
+ * 
+ */
 class DeclAST : public ASTnode {
 
 public:
@@ -65,7 +72,10 @@ public:
 };
 
 // ----- Expressions -----
-/// ExprART - Abstract class for other expressions.
+/**
+ * @brief Abstract class for other expressions.
+ * 
+ */
 class ExprAST : public ASTnode {
   TYPE mType;
 public:
@@ -73,7 +83,10 @@ public:
   virtual TYPE getType();
 };
 
-/// IntASTnode - Class for integer literals like 1, 2, 10,
+/**
+ * @brief Node class for integer literals.
+ * 
+ */
 class IntASTnode : public ExprAST {
   int mVal;
   TOKEN mToken;
@@ -83,7 +96,10 @@ public:
   const TYPE getType() const { return TYPE::INT; }
 };
 
-/// BoolASTnode - Class for boolean literals true and false,
+/**
+ * @brief Node class for boolean literals true and false.
+ * 
+ */
 class BoolASTnode : public ExprAST {
   bool mBool;
   TOKEN mToken;
@@ -93,7 +109,10 @@ public:
   const TYPE getType() const { return TYPE::BOOL; }
 };
 
-/// FloatASTnode - Node class for floating point literals like "1.0".
+/**
+ * @brief Node class for floating point literals.
+ * 
+ */
 class FloatASTnode : public ExprAST {
   double mVal;
   TOKEN mToken;
@@ -103,8 +122,10 @@ public:
   const TYPE getType() const { return TYPE::FLOAT; }
 };
 
-/// VariableASTnode - Class for referencing a variable (i.e. identifier), like
-/// "a".
+/**
+ * @brief Class for referencing a variable (i.e. identifier).
+ * 
+ */
 class VariableASTnode : public ExprAST {
 protected:
   TOKEN mToken;
@@ -121,6 +142,10 @@ public:
   const IDENT_TYPE getVarType() const { return VarType; }
 };
 
+/**
+ * @brief Class for assignment expressions.
+ * 
+ */
 class AssignAST : public ExprAST {
   std::unique_ptr<VariableASTnode> Variable;
   std::unique_ptr<ExprAST> Expression;
@@ -132,6 +157,10 @@ public:
   const TYPE getType() const { return Expression.get()->getType();};
 };
 
+/**
+ * @brief Class for binary expressions.
+ * 
+ */
 class BinaryExprAST : public ExprAST {
   std::unique_ptr<ExprAST> Left;
   BINARY_OP Op;
@@ -142,6 +171,10 @@ public:
   TYPE getType();
 };
 
+/**
+ * @brief Class for unary expressions.
+ * 
+ */
 class UnaryExprAST : public ExprAST {
   UNARY_OP Op;
   std::unique_ptr<ExprAST> Expression;
@@ -153,6 +186,10 @@ public:
   const TYPE getType() const { return Expression.get()->getType();};
 };
 
+/**
+ * @brief Class for a function call expression.
+ * 
+ */
 class CallExprAST : public ExprAST {
   std::unique_ptr<VariableASTnode> Callee;
   std::vector<std::unique_ptr<ExprAST>> Args;
@@ -163,7 +200,10 @@ public:
   const TYPE getType() const { return Callee->getType();};
 };
 
-/// ArgsAST - Class for a function argument in a function call
+/**
+ * @brief Class for function arguments in a function call.
+ * 
+ */
 class ArgsAST : public ExprAST {
   std::unique_ptr<VariableASTnode> Callee;
   std::vector<std::unique_ptr<ExprAST>> ArgsList;
@@ -172,9 +212,11 @@ public:
   ArgsAST(std::unique_ptr<VariableASTnode> callee, std::vector<std::unique_ptr<ExprAST>> args)
       : Callee(std::move(callee)), ArgsList(std::move(args)) {}
 };
-// ----- End -----
 
-/// ParamAST - Class for a parameter declaration
+/**
+ * @brief Class for a function parameter.
+ * 
+ */
 class ParamAST {
   std::string Name;
   TYPE Type;
@@ -186,7 +228,10 @@ public:
   TYPE getType() { return Type; }
 };
 
-/// VarDeclAST - Class for a variable declaration
+/**
+ * @brief Class for a variable declaration.
+ * 
+ */
 class VarDeclAST : public DeclAST {
   std::string Name;
   TYPE Type;
@@ -198,7 +243,10 @@ public:
   const std::string &getName() const { return Name; }
 };
 
-/// GlobVarDeclAST - Class for a Global variable declaration
+/**
+ * @brief Class for a global variable declaration.
+ * 
+ */
 class GlobVarDeclAST : public DeclAST {
   std::string Name;
   TYPE Type;
@@ -210,7 +258,10 @@ public:
   const std::string &getName() const { return Name; }
 };
 
-/// FunctionPrototypeAST - Class for a function declaration's signature
+/**
+ * @brief Class for a function declaration's signature.
+ * 
+ */
 class FunctionPrototypeAST {
   std::string Name;
   TYPE Type;
@@ -227,7 +278,10 @@ public:
   std::vector<std::unique_ptr<ParamAST>> &getParams() { return Params; }
 };
 
-/// BlockAST - Class for a block with declarations followed by statements
+/**
+ * @brief Class for a block of statements.
+ * 
+ */
 class BlockAST : public ASTnode {
   std::vector<std::unique_ptr<VarDeclAST>> LocalDecls; // vector of local decls
   std::vector<std::unique_ptr<ASTnode>> Stmts;         // vector of statements
@@ -238,7 +292,10 @@ public:
       : LocalDecls(std::move(localDecls)), Stmts(std::move(stmts)) {}
 };
 
-/// FunctionDeclAST - This class represents a function definition itself.
+/**
+ * @brief Class for a function definition itself.
+ * 
+ */
 class FunctionDeclAST : public DeclAST {
   std::unique_ptr<FunctionPrototypeAST> Proto;
   std::unique_ptr<BlockAST> Block;
@@ -249,7 +306,10 @@ public:
       : Proto(std::move(Proto)), Block(std::move(Block)) {}
 };
 
-/// IfExprAST - Expression class for if/then/else.
+/**
+ * @brief Class for an if statement.
+ * 
+ */
 class IfExprAST : public ASTnode {
   std::unique_ptr<ExprAST> Condition;
   std::unique_ptr<ASTnode> Then, Else;
@@ -260,7 +320,10 @@ public:
       : Condition(std::move(condition)), Then(std::move(then)), Else(std::move(_else)) {}
 };
 
-/// WhileExprAST - Expression class for while.
+/**
+ * @brief Class for a while statement.
+ * 
+ */
 class WhileExprAST : public ASTnode {
   std::unique_ptr<ExprAST> Condition;
   std::unique_ptr<ASTnode> Body;
@@ -270,7 +333,10 @@ public:
       : Condition(std::move(condition)), Body(std::move(body)) {}
 };
 
-/// ReturnAST - Class for a return value
+/**
+ * @brief Class for a return statement.
+ * 
+ */
 class ReturnAST : public ASTnode {
   std::unique_ptr<ExprAST> Expression;
 
