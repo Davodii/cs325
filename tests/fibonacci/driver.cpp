@@ -1,5 +1,5 @@
-#include <iostream>
 #include <cstdio>
+#include <iostream>
 
 // clang++ driver.cpp fibonacci.ll -o fib
 
@@ -10,25 +10,22 @@
 #endif
 
 extern "C" DLLEXPORT int print_int(int X) {
-  fprintf(stderr, "%d\n", X);
-  return 0;
+    fprintf(stderr, "%d\n", X);
+    return 0;
 }
 
 extern "C" DLLEXPORT float print_float(float X) {
-  fprintf(stderr, "%f\n", X);
-  return 0;
+    fprintf(stderr, "%f\n", X);
+    return 0;
 }
 
 extern "C" {
-    int fibonacci(int n);
+int fibonacci(int n);
 }
 
-
 int main() {
-	if(fibonacci(10) == 88) 
-      std::cout << "PASSED Result: " << fibonacci(10) << std::endl;
-  	else 
-  	  std::cout << "FAILED Result: " << fibonacci(10) << std::endl;
-
-    
+    if (fibonacci(10) == 88)
+        std::cout << "PASSED Result: " << fibonacci(10) << std::endl;
+    else
+        std::cout << "FAILED Result: " << fibonacci(10) << std::endl;
 }

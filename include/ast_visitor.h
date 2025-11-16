@@ -5,7 +5,7 @@
 #include "ast.h"
 
 class ASTVisitor {
-public:
+  public:
     virtual ~ASTVisitor() = default;
 
     virtual void visitNode(ASTnode *node) = 0;

@@ -1,6 +1,6 @@
-#include <iostream>
 #include <cstdio>
-#include <math.h> 
+#include <iostream>
+#include <math.h>
 
 // clang++ driver.cpp palindrome.ll -o palindrome
 
@@ -11,28 +11,25 @@
 #endif
 
 extern "C" DLLEXPORT int print_int(int X) {
-  fprintf(stderr, "%d\n", X);
-  return 0;
+    fprintf(stderr, "%d\n", X);
+    return 0;
 }
 
 extern "C" DLLEXPORT float print_float(float X) {
-  fprintf(stderr, "%f\n", X);
-  return 0;
+    fprintf(stderr, "%f\n", X);
+    return 0;
 }
 
 extern "C" {
-    bool palindrome(int number);
+bool palindrome(int number);
 }
-
 
 int main() {
 
-  float x = 3.14159; // pi
+    float x = 3.14159; // pi
 
-  
-  if(palindrome(12321) && palindrome(45677654) && !palindrome(123786))
-    std::cout << "PASSED Result: " << std::endl;
-  else 
-    std::cout << "FAILED Result: " << std::endl;    
-  
+    if (palindrome(12321) && palindrome(45677654) && !palindrome(123786))
+        std::cout << "PASSED Result: " << std::endl;
+    else
+        std::cout << "FAILED Result: " << std::endl;
 }

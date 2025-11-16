@@ -1,5 +1,5 @@
-#include <iostream>
 #include <cstdio>
+#include <iostream>
 
 // clang++ driver.cpp While.ll -o while
 
@@ -10,29 +10,26 @@
 #endif
 
 extern "C" DLLEXPORT int print_int(int X) {
-  fprintf(stderr, "%d\n", X);
-  return 0;
+    fprintf(stderr, "%d\n", X);
+    return 0;
 }
 
 extern "C" DLLEXPORT float print_float(float X) {
-  fprintf(stderr, "%f\n", X);
-  return 0;
+    fprintf(stderr, "%f\n", X);
+    return 0;
 }
 
 extern "C" {
-    void Void();
+void Void();
 }
 
 int main() {
 
-  try
-  {
-    Void();
-    std::cout << "PASSED Result: " << std::endl;
-  }
-  catch(const std::exception& e)
-  {
-    std::cerr << e.what() << '\n';
-    std::cout << "FAILED Result: " << std::endl;
-  }
+    try {
+        Void();
+        std::cout << "PASSED Result: " << std::endl;
+    } catch (const std::exception &e) {
+        std::cerr << e.what() << '\n';
+        std::cout << "FAILED Result: " << std::endl;
+    }
 }

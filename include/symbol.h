@@ -1,9 +1,8 @@
 #ifndef MC_SYMBOL_H
 #define MC_SYMBOL_H
 
-#include <string>
 #include "types.h"
-
+#include <string>
 
 struct Symbol {
     std::string name;

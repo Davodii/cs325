@@ -5,16 +5,18 @@
 #include "symbol_table.h"
 
 class SemanticAnalyser {
-public:
+  public:
     SemanticAnalyser();
 
     /**
      * @brief Run the semantic analysis on the given AST.
-     * 
-     * @param ast A vector of unique pointers to AST nodes representing the program.
+     *
+     * @param ast A vector of unique pointers to AST nodes representing the
+     * program.
      */
     void run(std::vector<std::unique_ptr<ASTnode>> ast);
-private:
+
+  private:
     SymbolTable mSymbolTable;
 
     /// TODO: expand this to actually include good error messages
@@ -29,7 +31,8 @@ private:
 
     // For expressions. Returns a unique_ptr because
     // an expression can be replaced.
-    std::unique_ptr<ExprAST> analyseExpression(std::unique_ptr<ExprAST> expression);
+    std::unique_ptr<ExprAST>
+    analyseExpression(std::unique_ptr<ExprAST> expression);
 
     // Specific helpers for different statement types
     void analyseBlock(BlockAST *block);

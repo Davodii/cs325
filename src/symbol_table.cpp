@@ -1,4 +1,4 @@
-#include "symbol_table.h"
+#include "../include/symbol_table.h"
 
 SymbolTable::SymbolTable() {
     // Start with a global scope
@@ -36,9 +36,10 @@ bool SymbolTable::addSymbol(const Symbol &symbol) {
     return true;
 }
 
-Symbol* SymbolTable::lookup(const std::string &name) {
+Symbol *SymbolTable::lookup(const std::string &name) {
     // Search from the innermost scope to the outermost
-    for (auto scopeIt = scopeStack.rbegin(); scopeIt != scopeStack.rend(); ++scopeIt) {
+    for (auto scopeIt = scopeStack.rbegin(); scopeIt != scopeStack.rend();
+         ++scopeIt) {
         auto it = scopeIt->find(name);
         if (it != scopeIt->end()) {
             return &it->second; // Found the symbol

@@ -1,9 +1,6 @@
 #ifndef MC_CODEGEN_H
 #define MC_CODEGEN_H
 
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/Module.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/BasicBlock.h"
@@ -39,11 +36,12 @@ extern std::unique_ptr<llvm::Module> TheModule;
 
 /// TODO: create the codegen visitor here
 class CodegenVisitor : ASTVisitor {
-public:
+  public:
     CodegenVisitor();
 
     /// Generate LLVM IR from the AST
-    void generateCode(std::vector<std::unique_ptr<ASTnode>> &ast, SymbolTable &symbolTable);
+    void generateCode(std::vector<std::unique_ptr<ASTnode>> &ast,
+                      SymbolTable &symbolTable);
 };
 
 #endif

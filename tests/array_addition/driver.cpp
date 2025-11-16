@@ -1,5 +1,5 @@
-#include <iostream>
 #include <cstdio>
+#include <iostream>
 
 // clang++ driver.cpp addition.ll -o add
 
@@ -10,22 +10,22 @@
 #endif
 
 extern "C" DLLEXPORT int print_int(int X) {
-  fprintf(stderr, "%d\n", X);
-  return 0;
+    fprintf(stderr, "%d\n", X);
+    return 0;
 }
 
 extern "C" DLLEXPORT float print_float(float X) {
-  fprintf(stderr, "%f\n", X);
-  return 0;
+    fprintf(stderr, "%f\n", X);
+    return 0;
 }
 
 extern "C" {
-    int arr_addition(int n, int m);
+int arr_addition(int n, int m);
 }
 
 int main() {
-    if(arr_addition(6, 3) == 9) 
-      std::cout << "PASSED Result: " << arr_addition(6, 3) << std::endl;
-  	else 
-  	  std::cout << "FAILED Result: " << arr_addition(6, 3) << std::endl;
+    if (arr_addition(6, 3) == 9)
+        std::cout << "PASSED Result: " << arr_addition(6, 3) << std::endl;
+    else
+        std::cout << "FAILED Result: " << arr_addition(6, 3) << std::endl;
 }

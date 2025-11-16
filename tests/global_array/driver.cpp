@@ -1,5 +1,5 @@
-#include <iostream>
 #include <cstdio>
+#include <iostream>
 
 // clang++ driver.cpp addition.ll -o add
 
@@ -10,17 +10,17 @@
 #endif
 
 extern "C" DLLEXPORT int print_int(int X) {
-  fprintf(stderr, "%d\n", X);
-  return 0;
+    fprintf(stderr, "%d\n", X);
+    return 0;
 }
 
 extern "C" DLLEXPORT float print_float(float X) {
-  fprintf(stderr, "%f\n", X);
-  return 0;
+    fprintf(stderr, "%f\n", X);
+    return 0;
 }
 
 extern "C" {
-    int vector_weighted_total();
+int vector_weighted_total();
 }
 
 int t_a[10];
@@ -35,8 +35,7 @@ int init_arrays() {
 
     while (i < 10) {
         j = 0;
-        while (j < 10)
-        {
+        while (j < 10) {
             t_b[i][j] = (i + 1) * (j + 1); // Example initialization
             j = j + 1;
         }
@@ -47,11 +46,11 @@ int init_arrays() {
     return 0;
 }
 
-int vector_weighted_total_test(){
+int vector_weighted_total_test() {
     int total;
     int i;
     int j;
-    
+
     init_arrays(); // Initialize the arrays before using them
     i = 0;
     j = 0;
@@ -60,9 +59,8 @@ int vector_weighted_total_test(){
     while (i < 10) {
         j = 0;
 
-        while (j < 10)
-        {
-            total = total + t_a[i] * t_b[i][j]; 
+        while (j < 10) {
+            total = total + t_a[i] * t_b[i][j];
             j = j + 1;
         }
         i = i + 1;
@@ -71,13 +69,13 @@ int vector_weighted_total_test(){
     return total;
 }
 
-
 int main() {
     // Initialize the arrays
     init_arrays();
-    
-    if(vector_weighted_total() == vector_weighted_total_test()) 
+
+    if (vector_weighted_total() == vector_weighted_total_test())
         std::cout << "PASSED Result: " << vector_weighted_total() << std::endl;
-    else 
-        std::cout << "FAILED Result: " << vector_weighted_total() << " expected: " << vector_weighted_total_test()<< std::endl;
+    else
+        std::cout << "FAILED Result: " << vector_weighted_total()
+                  << " expected: " << vector_weighted_total_test() << std::endl;
 }
