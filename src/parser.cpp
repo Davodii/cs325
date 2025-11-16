@@ -126,42 +126,6 @@ std::vector<std::unique_ptr<ParamAST>> Parser::ParseParamList() {
     return param_list;
 }
 
-std::vector<std::unique_ptr<ParamAST>> Parser::ParseParams() {
-    std::vector<std::unique_ptr<ParamAST>> param_list;
-
-    std::string Type;
-    std::string Name = "";
-
-    if (mCurrentToken.type == TOKEN_TYPE::INT_TOK ||
-        mCurrentToken.type == TOKEN_TYPE::FLOAT_TOK ||
-        mCurrentToken.type == TOKEN_TYPE::BOOL_TOK) { // FIRST(param_list)
-
-        auto list = ParseParamList();
-        for (unsigned i = 0; i < list.size(); i++) {
-            param_list.push_back(std::move(list.at(i)));
-        }
-
-    } else if (mCurrentToken.type == TOKEN_TYPE::VOID_TOK) { // FIRST("void")
-        // void
-        // check that the next token is a )
-        consumeToken(); // eat 'void'
-        if (mCurrentToken.type != TOKEN_TYPE::RPAR) {
-            ReportError(mCurrentToken, "expected ')', after 'void' in \
-       end of function declaration");
-        }
-    } else if (mCurrentToken.type == TOKEN_TYPE::RPAR) { // FOLLOW(params)
-        // expand by params ::= ε
-        // do nothing
-    } else {
-        ReportError(
-            mCurrentToken,
-            "expected 'int', 'bool' or 'float' in function declaration or ') in \
-       end of function declaration");
-    }
-
-    return param_list;
-}
-
 /*** TODO : Task 2 - Parser ***
 
 // args ::= arg_list
@@ -568,7 +532,6 @@ std::unique_ptr<ReturnAST> Parser::ParseReturnStmt() {
     return nullptr;
 }
 
-// while_stmt ::= "while" "(" expr ")" stmt
 std::unique_ptr<WhileExprAST> Parser::ParseWhileStmt() {
 
     consumeToken(); // eat the while.
@@ -582,9 +545,10 @@ std::unique_ptr<WhileExprAST> Parser::ParseWhileStmt() {
             ReportError(mCurrentToken, "expected )");
         consumeToken(); // eat )
 
-        auto Body = ParseStmt();
+        auto Body = ParseBlock();
         if (!Body)
-            return nullptr;
+            ReportError(mCurrentToken,
+                        "expected { to start body block of while statment");
 
         return std::make_unique<WhileExprAST>(std::move(Cond), std::move(Body));
     } else
@@ -604,30 +568,25 @@ std::unique_ptr<ASTnode> Parser::ParseStmt() {
         mCurrentToken.type == TOKEN_TYPE::SC) { // FIRST(expr_stmt)
         // expand by stmt ::= expr_stmt
         auto expr_stmt = ParseExperStmt();
-        fprintf(stderr, "Parsed an expression statement\n");
         return expr_stmt;
     } else if (mCurrentToken.type == TOKEN_TYPE::LBRA) { // FIRST(block)
         auto block_stmt = ParseBlock();
         if (block_stmt) {
-            fprintf(stderr, "Parsed a block\n");
             return block_stmt;
         }
     } else if (mCurrentToken.type == TOKEN_TYPE::IF) { // FIRST(if_stmt)
         auto if_stmt = ParseIfStmt();
         if (if_stmt) {
-            fprintf(stderr, "Parsed an if statment\n");
             return if_stmt;
         }
     } else if (mCurrentToken.type == TOKEN_TYPE::WHILE) { // FIRST(while_stmt)
         auto while_stmt = ParseWhileStmt();
         if (while_stmt) {
-            fprintf(stderr, "Parsed a while statment\n");
             return while_stmt;
         }
     } else if (mCurrentToken.type == TOKEN_TYPE::RETURN) { // FIRST(return_stmt)
         auto return_stmt = ParseReturnStmt();
         if (return_stmt) {
-            fprintf(stderr, "Parsed a return statment\n");
             return return_stmt;
         }
     }
@@ -636,7 +595,10 @@ std::unique_ptr<ASTnode> Parser::ParseStmt() {
     //  do nothing
     //}
     else { // syntax error
-        ReportError(mCurrentToken, "expected BLA BLA\n");
+        ReportError(mCurrentToken,
+                    "expected '!', '-', '+', '(' , IDENT , INT_LIT, BOOL_LIT, \
+                    FLOAT_LIT, ';', '{', 'while', 'if', 'else', 'return' to \
+                    start a statement\n");
     }
     return nullptr;
 }
@@ -805,12 +767,15 @@ std::unique_ptr<BlockAST> Parser::ParseBlock() {
         local_decls;                                 // vector of local decls
     std::vector<std::unique_ptr<ASTnode>> stmt_list; // vector of statements
 
+    if (mCurrentToken.type != TOKEN_TYPE::LBRA) {
+        ReportError(mCurrentToken,
+                    "expected '{' , start body of block statement");
+    }
+
     consumeToken(); // eat '{'
 
     local_decls = ParseLocalDecls();
-    fprintf(stderr, "Parsed a set of local variable declaration\n");
     stmt_list = ParseStmtList();
-    fprintf(stderr, "Parsed a list of statements\n");
     if (mCurrentToken.type == TOKEN_TYPE::RBRA)
         consumeToken(); // eat '}'
     else {              // syntax error
@@ -821,11 +786,47 @@ std::unique_ptr<BlockAST> Parser::ParseBlock() {
                                       std::move(stmt_list));
 }
 
+std::vector<std::unique_ptr<ParamAST>> Parser::ParseParams() {
+    std::vector<std::unique_ptr<ParamAST>> param_list;
+
+    std::string Type;
+    std::string Name = "";
+
+    if (mCurrentToken.type == TOKEN_TYPE::INT_TOK ||
+        mCurrentToken.type == TOKEN_TYPE::FLOAT_TOK ||
+        mCurrentToken.type == TOKEN_TYPE::BOOL_TOK) { // FIRST(param_list)
+
+        auto list = ParseParamList();
+        for (unsigned i = 0; i < list.size(); i++) {
+            param_list.push_back(std::move(list.at(i)));
+        }
+
+    } else if (mCurrentToken.type == TOKEN_TYPE::VOID_TOK) { // FIRST("void")
+        // void
+        // check that the next token is a )
+        consumeToken(); // eat 'void'
+        if (mCurrentToken.type != TOKEN_TYPE::RPAR) {
+            ReportError(mCurrentToken, "expected ')', after 'void' in \
+       end of function declaration");
+        }
+    } else if (mCurrentToken.type == TOKEN_TYPE::RPAR) { // FOLLOW(params)
+        // expand by params ::= ε
+        // do nothing
+    } else {
+        ReportError(
+            mCurrentToken,
+            "expected 'int', 'bool' or 'float' in function declaration or ') in \
+       end of function declaration");
+    }
+
+    return param_list;
+}
+
 std::unique_ptr<DeclAST> Parser::ParseDecl() {
     std::string IdName;
     std::vector<std::unique_ptr<ParamAST>> param_list;
 
-    TOKEN PrevTok = mCurrentToken; // to keep track of the type token
+    TOKEN typeTok = mCurrentToken; // to keep track of the type token
 
     if (mCurrentToken.type == TOKEN_TYPE::VOID_TOK ||
         mCurrentToken.type == TOKEN_TYPE::INT_TOK ||
@@ -836,21 +837,17 @@ std::unique_ptr<DeclAST> Parser::ParseDecl() {
         IdName = mCurrentToken.getIdentifierStr(); // save the identifier name
 
         if (mCurrentToken.type == TOKEN_TYPE::IDENT) {
-            auto ident =
-                std::make_unique<VariableASTnode>(mCurrentToken, IdName);
             consumeToken(); // eat the IDENT
             if (mCurrentToken.type ==
                 TOKEN_TYPE::SC) { // found ';' then this is a global variable
                                   // declaration.
                 consumeToken();   // eat ;
-                fprintf(stderr, "Parsed a variable declaration\n");
 
-                if (PrevTok.type != TOKEN_TYPE::VOID_TOK)
-                    return std::make_unique<GlobVarDeclAST>(
-                        IdName, stringToType(PrevTok.lexeme));
+                if (typeTok.type != TOKEN_TYPE::VOID_TOK)
+                    return std::make_unique<GlobVarDeclAST>(IdName, stringToType(typeTok.lexeme));
                 else
                     ReportError(
-                        PrevTok,
+                        typeTok,
                         "Cannot have variable declaration with type 'void'");
             } else if (mCurrentToken.type ==
                        TOKEN_TYPE::LPAR) { // found '(' then this is a function
@@ -860,32 +857,21 @@ std::unique_ptr<DeclAST> Parser::ParseDecl() {
                 auto P = ParseParams(); // parse the parameters, returns a
                                         // vector of params
                 // if (P.size() == 0) return nullptr;
-                fprintf(stderr, "Parsed parameter list for function\n");
 
                 if (mCurrentToken.type != TOKEN_TYPE::RPAR) // syntax error
                     ReportError(mCurrentToken,
                                 "expected ')' in function declaration");
 
                 consumeToken();                             // eat )
-                if (mCurrentToken.type != TOKEN_TYPE::LBRA) // syntax error
-                    ReportError(
-                        mCurrentToken,
-                        "expected '{' in function declaration, function body");
-
+                
                 auto B = ParseBlock(); // parse the function body
                 if (!B)
-                    return nullptr;
-                else
-                    fprintf(stderr, "Parsed block of statements in function\n");
-
-                // now create a Function prototype
-                // create a Function body
-                // put these to together
-                // and return a std::unique_ptr<FunctionDeclAST>
-                fprintf(stderr, "Parsed a function declaration\n");
+                    ReportError(
+                        mCurrentToken,
+                        "error parsing function body in function declaration");
 
                 auto Proto = std::make_unique<FunctionPrototypeAST>(
-                    IdName, stringToType(PrevTok.lexeme), std::move(P));
+                    IdName, stringToType(typeTok.lexeme), std::move(P));
                 return std::make_unique<FunctionDeclAST>(std::move(Proto),
                                                          std::move(B));
             } else
@@ -901,159 +887,99 @@ std::unique_ptr<DeclAST> Parser::ParseDecl() {
     return nullptr;
 }
 
-std::vector<std::unique_ptr<DeclAST>> Parser::ParseDeclListPrime() {
-    // TODO: change return type to vector of unique ptr to DeclAST
-    // and implement the collection of decls in this function
-
-    if (mCurrentToken.type == TOKEN_TYPE::VOID_TOK ||
-        mCurrentToken.type == TOKEN_TYPE::INT_TOK ||
-        mCurrentToken.type == TOKEN_TYPE::FLOAT_TOK ||
-        mCurrentToken.type == TOKEN_TYPE::BOOL_TOK) { // FIRST(decl)
-
-        if (auto decl = ParseDecl()) {
-            fprintf(stderr,
-                    "Parsed a top-level variable or function declaration\n");
-            // if (auto *DeclIR = decl->codegen()) {
-            //   DeclIR->print(errs());
-            //   fprintf(stderr, "\n");
-            // }
-        }
-        ParseDeclListPrime();
-    } else if (mCurrentToken.type ==
-               TOKEN_TYPE::EOF_TOK) { // FOLLOW(decl_list_prime)
-                                      // expand by decl_list_prime ::= ε
-                                      // do nothing
-    } else {                          // syntax error
-        ReportError(mCurrentToken,
-                    "expected 'void', 'int', 'bool' or 'float' or EOF token");
-    }
-}
-
 std::vector<std::unique_ptr<DeclAST>> Parser::ParseDeclList() {
-    auto decl = ParseDecl();
-    if (decl) {
+    std::vector<std::unique_ptr<DeclAST>> decls; // vector of decls
 
-        // TODO: remove the code generation code from here
-        // TODO: implement the return of vector of decls from this function
-
-        fprintf(stderr,
-                "Parsed a top-level variable or function declaration\n");
-        // if (auto *DeclIR = decl->codegen()) {
-        //   DeclIR->print(errs());
-        //   fprintf(stderr, "\n");
-        // }
-        ParseDeclListPrime();
+    // Parse decls
+    while (mCurrentToken.type == TOKEN_TYPE::VOID_TOK ||
+           mCurrentToken.type == TOKEN_TYPE::INT_TOK ||
+           mCurrentToken.type == TOKEN_TYPE::FLOAT_TOK ||
+           mCurrentToken.type == TOKEN_TYPE::BOOL_TOK) {
+        auto decl = ParseDecl();
+        if (decl) {
+            decls.push_back(std::move(decl));
+        } else {
+            // If ParseDecl fails, consume a token to avoid an infinite loop.
+            consumeToken();
+        }
     }
+
+    return decls;
 }
 
 std::unique_ptr<FunctionPrototypeAST> Parser::ParseExtern() {
     std::string IdName;
     TOKEN PrevTok;
 
-    if (mCurrentToken.type == TOKEN_TYPE::EXTERN) {
-        consumeToken(); // eat the EXTERN
+    if (mCurrentToken.type != TOKEN_TYPE::EXTERN) {
+        return nullptr;
+    }
 
-        if (mCurrentToken.type == TOKEN_TYPE::VOID_TOK ||
-            mCurrentToken.type == TOKEN_TYPE::INT_TOK ||
-            mCurrentToken.type == TOKEN_TYPE::FLOAT_TOK ||
-            mCurrentToken.type == TOKEN_TYPE::BOOL_TOK) {
+    consumeToken(); // eat the EXTERN
 
-            PrevTok = mCurrentToken; // to keep track of the type token
-            consumeToken(); // eat the VOID_TOK, INT_TOK, BOOL_TOK or FLOAT_TOK
+    if (mCurrentToken.type == TOKEN_TYPE::VOID_TOK ||
+        mCurrentToken.type == TOKEN_TYPE::INT_TOK ||
+        mCurrentToken.type == TOKEN_TYPE::FLOAT_TOK ||
+        mCurrentToken.type == TOKEN_TYPE::BOOL_TOK) {
 
-            if (mCurrentToken.type == TOKEN_TYPE::IDENT) {
-                IdName = mCurrentToken
-                             .getIdentifierStr(); // save the identifier name
-                auto ident =
-                    std::make_unique<VariableASTnode>(mCurrentToken, IdName);
-                consumeToken(); // eat the IDENT
+        PrevTok = mCurrentToken; // to keep track of the type token
+        consumeToken(); // eat the VOID_TOK, INT_TOK, BOOL_TOK or FLOAT_TOK
 
-                if (mCurrentToken.type ==
-                    TOKEN_TYPE::LPAR) { // found '(' - this is an extern
-                                        // function declaration.
-                    consumeToken(); // eat (
+        if (mCurrentToken.type != TOKEN_TYPE::IDENT) {
+            ReportError(mCurrentToken,
+                        "expected identifier' in extern function declaration");
+        }
 
-                    auto P = ParseParams(); // parse the parameters, returns a
-                                            // vector of params
-                    if (P.size() == 0)
-                        return nullptr;
-                    else
-                        fprintf(
-                            stderr,
-                            "Parsed parameter list for external function\n");
+        IdName = mCurrentToken.getIdentifierStr(); // save the identifier name
+        consumeToken(); // eat the IDENT
 
-                    if (mCurrentToken.type != TOKEN_TYPE::RPAR) // syntax error
-                        ReportError(mCurrentToken,
-                                    "expected ')' in closing extern function "
-                                    "declaration");
+        if (mCurrentToken.type !=
+            TOKEN_TYPE::LPAR) 
+            ReportError(mCurrentToken,
+                        "expected ;' in ending extern function "
+                        "declaration statement");
+            
+            consumeToken(); // eat (
 
-                    consumeToken(); // eat )
+            auto P = ParseParams(); // parse the parameters, returns a
+                                    // vector of params
 
-                    if (mCurrentToken.type == TOKEN_TYPE::SC) {
-                        consumeToken(); // eat ";"
-                        auto Proto = std::make_unique<FunctionPrototypeAST>(
-                            IdName, stringToType(PrevTok.lexeme), std::move(P));
-                        return Proto;
-                    } else
-                        ReportError(mCurrentToken,
-                                    "expected ;' in ending extern function "
-                                    "declaration statement");
-                } else
-                    ReportError(mCurrentToken,
-                                "expected (' in extern function declaration");
-            }
+            if (mCurrentToken.type != TOKEN_TYPE::RPAR) // syntax error
+                ReportError(mCurrentToken,
+                            "expected ')' in closing extern function "
+                            "declaration");
 
+            consumeToken(); // eat )
+
+            if (mCurrentToken.type == TOKEN_TYPE::SC) {
+                consumeToken(); // eat ";"
+                auto Proto = std::make_unique<FunctionPrototypeAST>(
+                    IdName, stringToType(PrevTok.lexeme), std::move(P));
+                return std::move(Proto);
         } else
             ReportError(mCurrentToken,
-                        "expected 'void', 'int' or 'float' in extern function "
-                        "declaration\n"); // syntax error
-    }
-
-    return nullptr;
-}
-
-std::vector<std::unique_ptr<FunctionPrototypeAST>>
-Parser::ParseExternListPrime() {
-
-    if (mCurrentToken.type == TOKEN_TYPE::EXTERN) { // FIRST(extern)
-        if (auto Extern = ParseExtern()) {
-            fprintf(stderr,
-                    "Parsed a top-level external function declaration -- 2\n");
-
-            // if (auto *ExternIR = Extern->codegen()) {
-            //   ExternIR->print(errs());
-            //   fprintf(stderr, "\n");
-            // }
-        }
-        ParseExternListPrime();
-    } else if (mCurrentToken.type == TOKEN_TYPE::VOID_TOK ||
-               mCurrentToken.type == TOKEN_TYPE::INT_TOK ||
-               mCurrentToken.type == TOKEN_TYPE::FLOAT_TOK ||
-               mCurrentToken.type ==
-                   TOKEN_TYPE::BOOL_TOK) { // FOLLOW(extern_list_prime)
-                                           // expand by decl_list_prime ::= ε
-                                           // do nothing
-    } else {                               // syntax error
-        ReportError(mCurrentToken,
-                    "expected 'extern' or 'void',  'int' ,  'float',  'bool'");
-    }
+                        "expected (' in extern function declaration");
+    } else
+        ReportError(
+            mCurrentToken,
+            "expected 'void', 'int', 'bool' or 'float' in extern function declaration");
 }
 
 std::vector<std::unique_ptr<FunctionPrototypeAST>> Parser::ParseExternList() {
-    auto Extern = ParseExtern();
-    if (Extern) {
-        fprintf(stderr,
-                "Parsed a top-level external function declaration -- 1\n");
+    std::vector<std::unique_ptr<FunctionPrototypeAST>> externs; // vector of extern function prototypes
 
-        // TODO: remove the code generation code from here
-        // if (auto *ExternIR = Extern->codegen()) {
-        //   ExternIR->print(errs());
-        //   fprintf(stderr, "\n");
-        // }
-        // fprintf(stderr, "Current token: %s \n", CurTok.lexeme.c_str());
-        if (mCurrentToken.type == TOKEN_TYPE::EXTERN)
-            ParseExternListPrime();
+    // Parse externs
+    while (mCurrentToken.type == TOKEN_TYPE::EXTERN) {
+        auto extern_decl = ParseExtern();
+        if (extern_decl) {
+            externs.push_back(std::move(extern_decl));
+        } else {
+            // If ParseExtern fails, consume a token to avoid an infinite loop.
+            consumeToken();
+        }
     }
+
+    return externs;
 }
 
 #ifdef USE_PARSER
@@ -1071,24 +997,26 @@ void parser() {
 #endif
 
 std::vector<std::unique_ptr<ASTnode>> Parser::parse() {
-    std::vector<std::unique_ptr<ASTnode>> decls;
+    std::vector<std::unique_ptr<ASTnode>> stmts;
 
-    while (mCurrentToken.type != TOKEN_TYPE::EOF_TOK) {
-        if (mCurrentToken.type == TOKEN_TYPE::EXTERN) {
-            auto ext = ParseExtern();
-            // Note: The current AST structure doesn't handle externs in the
-            // main AST vector. This is a design issue in the original project.
-            // We'll ignore them for now to get it to link.
-        } else {
-            auto decl = ParseDecl();
-            if (decl) {
-                decls.push_back(std::move(decl));
-            } else if (mCurrentToken.type != TOKEN_TYPE::EOF_TOK) {
-                // If ParseDecl fails, consume a token to avoid an infinite
-                // loop.
-                consumeToken();
-            }
-        }
+    if (mCurrentToken.type == TOKEN_TYPE::EOF_TOK)
+        return stmts;
+    
+    auto externs = ParseExternList();
+    for (auto& ext : externs) {
+        stmts.push_back(std::move(ext));
     }
-    return decls;
+
+    if (mCurrentToken.type == TOKEN_TYPE::EOF_TOK)
+        return stmts;
+    
+    auto decls = ParseDeclList();
+    for (auto& decl : decls) {
+        stmts.push_back(std::move(decl));
+    }
+
+    if (mCurrentToken.type == TOKEN_TYPE::EOF_TOK)
+        return stmts;
+    
+    ReportError(mCurrentToken, "expected EOF token after parsing extern and decl lists");
 }

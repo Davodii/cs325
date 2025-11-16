@@ -269,7 +269,7 @@ class BlockAST : public ASTnode {
  * @brief Class for a function declaration's signature.
  *
  */
-class FunctionPrototypeAST {
+class FunctionPrototypeAST : public ASTnode {
   public:
     FunctionPrototypeAST(const std::string &name, TYPE type,
                          std::vector<std::unique_ptr<ParamAST>> params)

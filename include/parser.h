@@ -394,7 +394,6 @@ class Parser {
      * @return std::vector<std::unique_ptr<FunctionPrototypeAST>>
      */
     std::vector<std::unique_ptr<FunctionPrototypeAST>> ParseExternList();
-    std::vector<std::unique_ptr<FunctionPrototypeAST>> ParseExternListPrime();
 
     /**
      * @brief Parse a single extern function prototype.
