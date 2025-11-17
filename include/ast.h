@@ -16,7 +16,12 @@
 class ASTnode {
   public:
     virtual ~ASTnode() {}
-    virtual std::string to_string() const;
+    virtual std::string to_string(int indent = 0) const;
+protected:
+    std::string indentString(int indent) const {
+        return std::string(indent * 2, ' '); // 2 spaces per level
+    }
+    std::string typeToString(TYPE type) const;
 };
 
 /**
@@ -26,7 +31,7 @@ class ASTnode {
 class DeclAST : public ASTnode {
   public:
     virtual ~DeclAST() {}
-    virtual std::string to_string() const;
+    virtual std::string to_string(int indent = 0) const;
 };
 
 // ----- Expressions -----
@@ -37,9 +42,9 @@ class DeclAST : public ASTnode {
 class ExprAST : public ASTnode {
   public:
     virtual ~ExprAST() = default;
-    virtual TYPE getType();
-    virtual std::string to_string() const;
-
+    virtual std::string to_string(int indent = 0) const;
+protected:
+    std::string operatorToString(TOKEN_TYPE op) const;
   private:
     TYPE mType;
 };
@@ -51,10 +56,7 @@ class ExprAST : public ASTnode {
 class IntASTnode : public ExprAST {
   public:
     IntASTnode(const TOKEN &tok, int val) : mVal(val), mToken(tok) {}
-    const TYPE getType() const { return TYPE::INT; }
-    std::string to_string() const {
-        return "IntASTnode(" + std::to_string(mVal) + ")";
-    };
+    std::string to_string(int indent = 0) const;
 
   private:
     int mVal;
@@ -68,10 +70,7 @@ class IntASTnode : public ExprAST {
 class BoolASTnode : public ExprAST {
   public:
     BoolASTnode(const TOKEN &tok, bool B) : mBool(B), mToken(tok) {}
-    const TYPE getType() const { return TYPE::BOOL; }
-    std::string to_string() const {
-        return "BoolASTnode(" + std::to_string(mBool) + ")";
-    };
+    std::string to_string(int indent = 0) const;
 
   private:
     bool mBool;
@@ -85,10 +84,7 @@ class BoolASTnode : public ExprAST {
 class FloatASTnode : public ExprAST {
   public:
     FloatASTnode(const TOKEN &tok, double val) : mVal(val), mToken(tok) {}
-    const TYPE getType() const { return TYPE::FLOAT; }
-    std::string to_string() const {
-        return "FloatASTnode(" + std::to_string(mVal) + ")";
-    };
+    std::string to_string(int indent = 0) const;
 
   private:
     double mVal;
@@ -106,13 +102,7 @@ class VariableASTnode : public ExprAST {
     VariableASTnode(const TOKEN &tok, const std::string &name)
         : mToken(tok), mName(name) {}
     const std::string &getName() const { return mName; }
-    TYPE getType() const {
-        // Ensure that the variable has been resolved before getting its type
-        assert(resolvedSymbol &&
-               "Variable not resolved before semantic resolution");
-        return resolvedSymbol->type;
-    };
-    std::string to_string() const { return "VariableASTnode(" + mName + ")"; };
+    std::string to_string(int indent = 0) const;
 
     Symbol *resolvedSymbol;
 
@@ -132,12 +122,7 @@ class AssignExprAST : public ExprAST {
         : mVariable(std::move(variable)), mExpression(std::move(expression)) {}
 
     /// Return the type of the expression
-    const TYPE getType() const { return mExpression.get()->getType(); };
-
-    std::string to_string() const {
-        return "AssignExprAST(" + mVariable->to_string() + ", " +
-               mExpression->to_string() + ")";
-    };
+    std::string to_string(int indent = 0) const;
 
   private:
     std::unique_ptr<VariableASTnode> mVariable;
@@ -153,8 +138,7 @@ class BinaryExprAST : public ExprAST {
     BinaryExprAST(std::unique_ptr<ExprAST> left, TOKEN_TYPE op,
                   std::unique_ptr<ExprAST> right)
         : mLeft(std::move(left)), mOp(op), mRight(std::move(right)) {}
-    TYPE getType();
-    std::string to_string() const;
+    std::string to_string(int indent = 0) const;
 
   private:
     std::unique_ptr<ExprAST> mLeft, mRight;
@@ -170,17 +154,7 @@ class UnaryExprAST : public ExprAST {
     UnaryExprAST(TOKEN_TYPE op, std::unique_ptr<ExprAST> expression)
         : mOp(op), mExpression(std::move(expression)) {}
 
-    /**
-     * @brief Get the type of the unary expression.
-     *
-     * Unary expression type is the same as the type of its expression since
-     * unary operators should not change the type.
-     *
-     * @return const TYPE
-     */
-    const TYPE getType() const { return mExpression.get()->getType(); };
-
-    std::string to_string() const;
+    std::string to_string(int indent = 0) const;
 
   private:
     TOKEN_TYPE mOp;
@@ -196,7 +170,7 @@ class ArgsAST : public ExprAST {
     ArgsAST(std::vector<std::unique_ptr<ExprAST>> args)
         : ArgsList(std::move(args)) {}
 
-    std::string to_string() const;
+    std::string to_string(int indent = 0) const;
 
   private:
     std::vector<std::unique_ptr<ExprAST>> ArgsList;
@@ -211,8 +185,7 @@ class CallExprAST : public ExprAST {
     CallExprAST(std::unique_ptr<VariableASTnode> callee,
                 std::unique_ptr<ArgsAST> args)
         : mCallee(std::move(callee)), mArgs(std::move(args)) {};
-    TYPE getType() const { return mCallee->getType(); };
-    std::string to_string() const;
+    std::string to_string(int indent = 0) const;
 
   private:
     std::unique_ptr<VariableASTnode> mCallee;
@@ -223,13 +196,13 @@ class CallExprAST : public ExprAST {
  * @brief Class for a function parameter.
  *
  */
-class ParamAST {
+class ParamAST : public ASTnode {
   public:
     ParamAST(const std::string &name, TYPE type) : mName(name), mType(type) {}
     const std::string &getName() const { return mName; }
-    TYPE getType() { return mType; }
-    std::string to_string() const;
+    std::string to_string(int indent = 0) const;
 
+    // TODO: make symbol be private and use getter/setter
     Symbol *symbol;
 
   private:
@@ -244,9 +217,8 @@ class ParamAST {
 class VarDeclAST : public DeclAST {
   public:
     VarDeclAST(const std::string &name, TYPE type) : mName(name), mType(type) {}
-    TYPE getType() { return mType; }
     const std::string &getName() const { return mName; }
-    std::string to_string() const;
+    std::string to_string(int indent = 0) const;
 
     Symbol *symbol;
 
@@ -263,9 +235,8 @@ class GlobVarDeclAST : public DeclAST {
   public:
     GlobVarDeclAST(const std::string &name, TYPE type)
         : mName(name), mType(type) {}
-    TYPE getType() { return mType; }
     const std::string &getName() const { return mName; }
-    std::string to_string() const;
+    std::string to_string(int indent = 0) const;
 
     Symbol *symbol;
 
@@ -283,7 +254,7 @@ class BlockAST : public ASTnode {
     BlockAST(std::vector<std::unique_ptr<VarDeclAST>> localDecls,
              std::vector<std::unique_ptr<ASTnode>> stmts)
         : mLocalDecls(std::move(localDecls)), mStmts(std::move(stmts)) {}
-    std::string to_string() const;
+    std::string to_string(int indent = 0) const;
 
   private:
     std::vector<std::unique_ptr<VarDeclAST>>
@@ -302,10 +273,9 @@ class FunctionPrototypeAST : public ASTnode {
         : mName(name), mType(type), mParams(std::move(params)) {}
 
     const std::string &getName() const { return mName; }
-    TYPE getType() { return mType; }
     int getSize() const { return mParams.size(); }
     std::vector<std::unique_ptr<ParamAST>> &getParams() { return mParams; }
-    std::string to_string() const;
+    std::string to_string(int indent = 0) const;
 
     Symbol *symbol;
 
@@ -324,7 +294,7 @@ class FunctionDeclAST : public DeclAST {
     FunctionDeclAST(std::unique_ptr<FunctionPrototypeAST> mProto,
                     std::unique_ptr<BlockAST> mBlock)
         : mProto(std::move(mProto)), mBlock(std::move(mBlock)) {}
-    std::string to_string() const;
+    std::string to_string(int indent = 0) const;
 
   private:
     std::unique_ptr<FunctionPrototypeAST> mProto;
@@ -341,7 +311,7 @@ class IfExprAST : public ASTnode {
               std::unique_ptr<BlockAST> then, std::unique_ptr<BlockAST> _else)
         : mCondition(std::move(condition)), mThen(std::move(then)),
           mElse(std::move(_else)) {}
-    std::string to_string() const;
+    std::string to_string(int indent = 0) const;
 
   private:
     std::unique_ptr<ExprAST> mCondition;
@@ -357,7 +327,7 @@ class WhileExprAST : public ASTnode {
     WhileExprAST(std::unique_ptr<ExprAST> condition,
                  std::unique_ptr<BlockAST> body)
         : mCondition(std::move(condition)), mBody(std::move(body)) {}
-    std::string to_string() const;
+    std::string to_string(int indent = 0) const;
 
   private:
     std::unique_ptr<ExprAST> mCondition;
@@ -372,7 +342,7 @@ class ReturnAST : public ASTnode {
   public:
     ReturnAST(std::unique_ptr<ExprAST> expression)
         : mExpression(std::move(expression)) {}
-    std::string to_string() const;
+    std::string to_string(int indent = 0) const;
 
   private:
     std::unique_ptr<ExprAST> mExpression;

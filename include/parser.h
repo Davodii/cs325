@@ -66,7 +66,7 @@ class Parser {
      * @brief A buffer to hold tokens that have been put back.
      *
      */
-    std::deque<TOKEN> mTokenBuffer;
+    // std::deque<TOKEN> mTokenBuffer;
 
     /**
      * @brief Consume the next token from the lexer or from the token buffer.
@@ -79,9 +79,10 @@ class Parser {
      *
      * @param token
      */
-    void putBackToken(TOKEN token);
+    // void putBackToken(TOKEN token);
 
     // --- Literals ---
+
     /**
      * @brief Parse a float number expression.
      *

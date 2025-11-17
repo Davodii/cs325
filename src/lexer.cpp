@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include "parser.h"
 #include <cstdio>
 
 Lexer::Lexer(const char *filename) {
@@ -66,10 +67,23 @@ TOKEN Lexer::returnToken(std::string lexVal, TOKEN_TYPE tokType) {
     return return_tok;
 }
 
+TOKEN Lexer::peekToken() {
+    if (!mHasPeekedToken) {
+        mPeekedToken = getNextToken();
+        mHasPeekedToken = true;
+    }
+    return mPeekedToken;
+}
+
 // Read file line by line -- or look for \n and if found add 1 to line number
 // and reset column number to 0
 /// gettok - Return the next token from standard input.
 TOKEN Lexer::getNextToken() {
+
+    if (mHasPeekedToken) {
+        mHasPeekedToken = false;
+        return mPeekedToken;
+    }
 
     static int LastChar = ' ';
     static int NextChar = ' ';

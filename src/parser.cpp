@@ -8,16 +8,7 @@
 [[noreturn]] static void ReportError(const char *Str) { throw ParseError(Str); }
 
 void Parser::consumeToken() {
-    if (mTokenBuffer.empty()) {
-        mCurrentToken = mLexer.getNextToken();
-    } else {
-        mCurrentToken = mTokenBuffer.front();
-        mTokenBuffer.pop_front();
-    }
-}
-
-void Parser::putBackToken(TOKEN token) { 
-    mTokenBuffer.push_front(token);
+    mCurrentToken = mLexer.getNextToken();
 }
 
 static TYPE stringToType(const std::string &s) {
@@ -268,13 +259,12 @@ std::unique_ptr<ExprAST> Parser::ParseExper() {
     // Check for assignment
     if (mCurrentToken.type == TOKEN_TYPE::IDENT) {
         TOKEN idToken = mCurrentToken;
-        std::string idName = mCurrentToken.getIdentifierStr();
-        consumeToken(); // eat IDENT
+        TOKEN next = mLexer.peekToken();
 
-        if (mCurrentToken.type == TOKEN_TYPE::ASSIGN) {
+        if (next.type == TOKEN_TYPE::ASSIGN) {
+            std::string idName = mCurrentToken.getIdentifierStr();
+            consumeToken(); // eat IDENT
             consumeToken(); // eat '='
-
-            fprintf(stderr, "Parsing assignment to %s\n", idName.c_str());
 
             auto rhs = ParseExper();
             if (!rhs)
@@ -285,10 +275,6 @@ std::unique_ptr<ExprAST> Parser::ParseExper() {
             return std::make_unique<AssignExprAST>(
                 std::make_unique<VariableASTnode>(idToken, idName),
                 std::move(rhs));
-        } else {
-            // Not an assignment, put back the IDENT token and parse as
-            // logical_or
-            putBackToken(idToken);
         }
     }
 
@@ -605,7 +591,6 @@ std::unique_ptr<VarDeclAST> Parser::ParseLocalDecl() {
                             "Expected ';' to end local variable declaration");
             }
             consumeToken(); // eat ';'
-            fprintf(stderr, "%s\n", local_decl->to_string().c_str());
         } else {
             ReportError(mCurrentToken,
                         "expected identifier' in local variable declaration");
@@ -832,8 +817,6 @@ std::unique_ptr<DeclAST> Parser::ParseDecl() {
                 auto Proto = std::make_unique<FunctionPrototypeAST>(
                     IdName, stringToType(typeTok.lexeme), std::move(P));
 
-                fprintf(stderr, "%s\n", Proto->to_string().c_str());
-
                 auto B = ParseBlock(); // parse the function body
                 if (!B)
                     ReportError(
@@ -866,7 +849,6 @@ std::vector<std::unique_ptr<DeclAST>> Parser::ParseDeclList() {
            mCurrentToken.type == TOKEN_TYPE::BOOL_TOK) {
         auto decl = ParseDecl();
         if (decl) {
-            fprintf(stderr, "%s\n", decl->to_string().c_str());
             decls.push_back(std::move(decl));
         } else {
             // If ParseDecl fails, consume a token to avoid an infinite loop.
@@ -942,7 +924,6 @@ std::vector<std::unique_ptr<FunctionPrototypeAST>> Parser::ParseExternList() {
     while (mCurrentToken.type == TOKEN_TYPE::EXTERN) {
         auto extern_decl = ParseExtern();
         if (extern_decl) {
-            fprintf(stderr, "%s\n", extern_decl->to_string().c_str());
             externs.push_back(std::move(extern_decl));
         } else {
             // If ParseExtern fails, consume a token to avoid an infinite loop.

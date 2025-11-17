@@ -85,7 +85,19 @@ class Lexer {
     Lexer(const char *filename);
     ~Lexer();
 
+    /**
+     * @brief Get the next token in the file
+     * 
+     * @return TOKEN 
+     */
     TOKEN getNextToken();
+
+    /**
+     * @brief Peek at the next token without consuming it
+     * 
+     * @return TOKEN 
+     */
+    TOKEN peekToken();
 
   private:
     FILE *pFile;
@@ -93,6 +105,16 @@ class Lexer {
     int mColumnNo;
     std::string mGlobalLexeme;
 
+    TOKEN mPeekedToken;
+    bool mHasPeekedToken = false;
+
+    /**
+     * @brief Helper function to create and return a TOKEN
+     * 
+     * @param lexVal 
+     * @param tokType 
+     * @return TOKEN
+     */
     TOKEN returnToken(std::string lexVal, TOKEN_TYPE tokType);
 };
 
