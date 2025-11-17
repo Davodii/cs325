@@ -17,7 +17,8 @@ class ASTnode {
   public:
     virtual ~ASTnode() {}
     virtual std::string to_string(int indent = 0) const;
-protected:
+
+  protected:
     std::string indentString(int indent) const {
         return std::string(indent * 2, ' '); // 2 spaces per level
     }
@@ -43,8 +44,10 @@ class ExprAST : public ASTnode {
   public:
     virtual ~ExprAST() = default;
     virtual std::string to_string(int indent = 0) const;
-protected:
+
+  protected:
     std::string operatorToString(TOKEN_TYPE op) const;
+
   private:
     TYPE mType;
 };

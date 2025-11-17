@@ -288,7 +288,7 @@ class Parser {
      */
     std::vector<std::unique_ptr<VarDeclAST>> ParseLocalDeclList();
     std::vector<std::unique_ptr<VarDeclAST>> ParseLocalDeclListPrime();
-    
+
     // --- Statements ---
     /**
      * @brief Parse a list of statements.
@@ -300,7 +300,7 @@ class Parser {
      */
     std::vector<std::unique_ptr<ASTnode>> ParseStmtList();
     std::vector<std::unique_ptr<ASTnode>> ParseStmtListPrime();
-    
+
     /**
      * @brief Parse a single statement.
      *

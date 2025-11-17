@@ -18,10 +18,6 @@ class SemanticAnalyser {
 
   private:
     SymbolTable mSymbolTable;
-
-    /// TODO: expand this to actually include good error messages
-    bool hasError = false;
-
     // --- Recursive analysis methods ---
     // Take ownership of a node and return ownership of the
     // (potentially) new node.

@@ -7,9 +7,7 @@
 
 [[noreturn]] static void ReportError(const char *Str) { throw ParseError(Str); }
 
-void Parser::consumeToken() {
-    mCurrentToken = mLexer.getNextToken();
-}
+void Parser::consumeToken() { mCurrentToken = mLexer.getNextToken(); }
 
 static TYPE stringToType(const std::string &s) {
     if (s == "int") {
@@ -113,8 +111,9 @@ std::unique_ptr<ExprAST> Parser::ParsePrimary() {
         consumeToken(); // eat ')'
         return Expression;
     } else {
-        ReportError(mCurrentToken,
-                    ("unknown token '" + mCurrentToken.lexeme +"' when expecting an expression").c_str());
+        ReportError(mCurrentToken, ("unknown token '" + mCurrentToken.lexeme +
+                                    "' when expecting an expression")
+                                       .c_str());
     }
 }
 
@@ -253,7 +252,6 @@ std::unique_ptr<ExprAST> Parser::ParseLogicalOr() {
 
     return LHS;
 }
-
 
 std::unique_ptr<ExprAST> Parser::ParseExper() {
     // Check for assignment
@@ -740,8 +738,7 @@ std::vector<std::unique_ptr<ParamAST>> Parser::ParseParamList() {
             Name = mCurrentToken.getIdentifierStr();
             consumeToken(); // eat IDENT
 
-            auto param =
-                std::make_unique<ParamAST>(Name, stringToType(Type));
+            auto param = std::make_unique<ParamAST>(Name, stringToType(Type));
             param_list.push_back(std::move(param));
 
             if (mCurrentToken.type == TOKEN_TYPE::COMMA) {
@@ -754,8 +751,9 @@ std::vector<std::unique_ptr<ParamAST>> Parser::ParseParamList() {
                             "expected ',' or ')' in function declaration");
             }
         } else {
-            ReportError(mCurrentToken,
-                        "expected identifier in function parameter declaration");
+            ReportError(
+                mCurrentToken,
+                "expected identifier in function parameter declaration");
         }
     }
 
@@ -805,7 +803,7 @@ std::unique_ptr<DeclAST> Parser::ParseDecl() {
                 consumeToken();            // eat (
 
                 auto P = ParseParamList(); // parse the parameters, returns a
-                                        // vector of params
+                                           // vector of params
                 // if (P.size() == 0) return nullptr;
 
                 if (mCurrentToken.type != TOKEN_TYPE::RPAR) // syntax error
@@ -823,7 +821,6 @@ std::unique_ptr<DeclAST> Parser::ParseDecl() {
                         mCurrentToken,
                         "error parsing function body in function declaration");
 
-                
                 return std::make_unique<FunctionDeclAST>(std::move(Proto),
                                                          std::move(B));
             } else
@@ -893,7 +890,7 @@ std::unique_ptr<FunctionPrototypeAST> Parser::ParseExtern() {
         consumeToken(); // eat (
 
         auto P = ParseParamList(); // parse the parameters, returns a
-                                // vector of params
+                                   // vector of params
 
         if (mCurrentToken.type != TOKEN_TYPE::RPAR) // syntax error
             ReportError(mCurrentToken,

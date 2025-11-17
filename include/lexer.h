@@ -87,15 +87,15 @@ class Lexer {
 
     /**
      * @brief Get the next token in the file
-     * 
-     * @return TOKEN 
+     *
+     * @return TOKEN
      */
     TOKEN getNextToken();
 
     /**
      * @brief Peek at the next token without consuming it
-     * 
-     * @return TOKEN 
+     *
+     * @return TOKEN
      */
     TOKEN peekToken();
 
@@ -110,9 +110,9 @@ class Lexer {
 
     /**
      * @brief Helper function to create and return a TOKEN
-     * 
-     * @param lexVal 
-     * @param tokType 
+     *
+     * @param lexVal
+     * @param tokType
      * @return TOKEN
      */
     TOKEN returnToken(std::string lexVal, TOKEN_TYPE tokType);
