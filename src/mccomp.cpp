@@ -28,6 +28,13 @@ int main(int argc, char **argv) {
     }
     fprintf(stderr, "Parsing finished!\n");
 
+    // NOTE: For debugging, print the AST
+    for (const auto &node : ast) {
+        if (node) {
+            fprintf(stderr, "%s\n", node->to_string().c_str());
+        }
+    }
+
     // Initialize code generation
     TheModule = std::make_unique<Module>("mini-c", TheContext);
 
@@ -54,7 +61,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     // TheModule->print(errs(), nullptr); // print IR to terminal
-    TheModule->print(dest, nullptr);
+    // TheModule->print(dest, nullptr);
     printf("********************* FINAL IR (end) "
            "******************************\n");
 

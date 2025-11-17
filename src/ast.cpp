@@ -6,7 +6,8 @@
 // TODO: Provide definitions for the methods that are declared in ast.h but not
 // defined.
 
-// TYPE ExprAST::getType() { return mType; }
+TYPE ExprAST::getType() { return mType; }
+std::string ExprAST::to_string() const { return "ExprAST()"; }
 
 TYPE BinaryExprAST::getType() {
     // This should depend on the operation and operand types.
@@ -24,53 +25,56 @@ TYPE BinaryExprAST::getType() {
     return mLeft->getType();
 }
 
-static std::string token_to_string(TOKEN_TYPE token) {
-    switch (token) {
-    case TOKEN_TYPE::PLUS:
+static std::string operator_to_string(TOKEN_TYPE token) {
+    // TODO: why doesn't a switch work here?
+    if (token == TOKEN_TYPE::PLUS) {
         return "+";
-    case TOKEN_TYPE::MINUS:
+    } else if (token == TOKEN_TYPE::MINUS) {
         return "-";
-    case TOKEN_TYPE::ASTERIX:
+    } else if (token == TOKEN_TYPE::ASTERIX) {
         return "*";
-    case TOKEN_TYPE::DIV:
+    } else if (token == TOKEN_TYPE::DIV) {
         return "/";
-    case TOKEN_TYPE::LT:
+    } else if (token == TOKEN_TYPE::LT) {
         return "<";
-    case TOKEN_TYPE::GT:
+    } else if (token == TOKEN_TYPE::GT) {
         return ">";
-    case TOKEN_TYPE::EQ:
+    } else if (token == TOKEN_TYPE::EQ) {
         return "==";
-    case TOKEN_TYPE::NE:
+    } else if (token == TOKEN_TYPE::NE) {
         return "!=";
-    case TOKEN_TYPE::ASSIGN:
+    } else if (token == TOKEN_TYPE::ASSIGN) {
         return "=";
-    case TOKEN_TYPE::NOT:
+    } else if (token == TOKEN_TYPE::NOT) {
         return "!";
-    default:
+    } else {
         return "UNKNOWN_TOKEN";
     }
 }
 
-static std::string type_to_string(TYPE type) {
-    switch (type) {
-    case TYPE::INT:
-        return "INT";
-    case TYPE::FLOAT:
-        return "FLOAT";
-    case TYPE::VOID:
-        return "VOID";
-    default:
-        return "UNKNOWN_TYPE";
+static std::string typeToString(TYPE type) {
+    if (type == TYPE::BOOL) {
+        return "BOOL";
     }
+    if (type == TYPE::INT) {
+        return "INT";
+    }
+    if (type == TYPE::FLOAT) {
+        return "FLOAT";
+    }
+    if (type == TYPE::VOID) {
+        return "VOID";
+    }
+    return "UNKNOWN_TYPE";
 }
 
 std::string BinaryExprAST::to_string() const {
-    return "BinaryExprAST(" + mLeft->to_string() + ", " + token_to_string(mOp) +
+    return "BinaryExprAST(" + mLeft->to_string() + ", " + operator_to_string(mOp) +
            ", " + mRight->to_string() + ")";
 }
 
 std::string UnaryExprAST::to_string() const {
-    return "UnaryExprAST(" + token_to_string(mOp) + ", " +
+    return "UnaryExprAST(" + operator_to_string(mOp) + ", " +
            mExpression->to_string() + ")";
 }
 
@@ -95,15 +99,15 @@ std::string CallExprAST::to_string() const {
 }
 
 std::string ParamAST::to_string() const {
-    return "ParamAST(" + mName + ", " + type_to_string(mType) + ")";
+    return "ParamAST(" + mName + ", " + typeToString(mType) + ")";
 }
 
 std::string VarDeclAST::to_string() const {
-    return "VarDeclAST(" + mName + ", " + type_to_string(mType) + ")";
+    return "VarDeclAST(" + mName + ", " + typeToString(mType) + ")";
 }
 
 std::string GlobVarDeclAST::to_string() const {
-    return "GlobVarDeclAST(" + mName + ", " + type_to_string(mType) + ")";
+    return "GlobVarDeclAST(" + mName + ", " + typeToString(mType) + ")";
 }
 
 std::string BlockAST::to_string() const {
@@ -129,7 +133,7 @@ std::string BlockAST::to_string() const {
 
 std::string FunctionPrototypeAST::to_string() const {
     std::string s =
-        "FunctionPrototypeAST(" + mName + ", " + type_to_string(mType) + ", [";
+        "FunctionPrototypeAST(" + mName + ", " + typeToString(mType) + ", [";
     for (const auto &param : mParams) {
         s += param->to_string() + ", ";
     }

@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include <cstdio>
 
 Lexer::Lexer(const char *filename) {
     pFile = fopen(filename, "r");
@@ -7,6 +8,9 @@ Lexer::Lexer(const char *filename) {
         perror("Error opening file.");
         exit(1);
     }
+
+    mLineNo = 1;
+    mColumnNo = 1;
 }
 
 Lexer::~Lexer() {
@@ -91,13 +95,13 @@ TOKEN Lexer::getNextToken() {
         }
 
         if (mGlobalLexeme == "int")
+            return returnToken("int", TOKEN_TYPE::INT_TOK);
+        if (mGlobalLexeme == "bool")
             return returnToken("bool", TOKEN_TYPE::BOOL_TOK);
         if (mGlobalLexeme == "float")
             return returnToken("float", TOKEN_TYPE::FLOAT_TOK);
         if (mGlobalLexeme == "void")
             return returnToken("void", TOKEN_TYPE::VOID_TOK);
-        if (mGlobalLexeme == "bool")
-            return returnToken("bool", TOKEN_TYPE::BOOL_TOK);
         if (mGlobalLexeme == "extern")
             return returnToken("extern", TOKEN_TYPE::EXTERN);
         if (mGlobalLexeme == "if")

@@ -5,7 +5,6 @@
 #include "lexer.h"
 #include <queue>
 
-#include <stdexcept>
 #include <string>
 
 /**
@@ -231,16 +230,6 @@ class Parser {
 
     // --- Declarations ---
     /**
-     * @brief Parse function parameters.
-     *
-     * params ::= param_list
-     *        |  ε
-     *
-     * @return std::vector<std::unique_ptr<ParamAST>>
-     */
-    std::vector<std::unique_ptr<ParamAST>> ParseParams();
-
-    /**
      * @brief Parse the parameter list.
      *
      * param_list ::= param param_list_prime
@@ -249,7 +238,6 @@ class Parser {
      * @return std::vector<std::unique_ptr<ParamAST>>
      */
     std::vector<std::unique_ptr<ParamAST>> ParseParamList();
-    std::vector<std::unique_ptr<ParamAST>> ParseParamListPrime();
 
     /**
      * @brief Parse a single parameter.
@@ -269,7 +257,6 @@ class Parser {
      * @return std::vector<std::unique_ptr<DeclAST>>
      */
     std::vector<std::unique_ptr<DeclAST>> ParseDeclList();
-    std::vector<std::unique_ptr<DeclAST>> ParseDeclListPrime();
 
     /**
      * @brief Parse a single declaration.
@@ -298,9 +285,9 @@ class Parser {
      *
      * @return std::vector<std::unique_ptr<VarDeclAST>>
      */
-    std::vector<std::unique_ptr<VarDeclAST>> ParseLocalDecls();
-    std::vector<std::unique_ptr<VarDeclAST>> ParseLocalDeclsPrime();
-
+    std::vector<std::unique_ptr<VarDeclAST>> ParseLocalDeclList();
+    std::vector<std::unique_ptr<VarDeclAST>> ParseLocalDeclListPrime();
+    
     // --- Statements ---
     /**
      * @brief Parse a list of statements.
@@ -312,9 +299,7 @@ class Parser {
      */
     std::vector<std::unique_ptr<ASTnode>> ParseStmtList();
     std::vector<std::unique_ptr<ASTnode>> ParseStmtListPrime();
-
-    // --- Statements ---
-
+    
     /**
      * @brief Parse a single statement.
      *
