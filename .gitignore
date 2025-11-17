@@ -1,5 +1,6 @@
 /.vscode
 /build
+/.cache
 mccomp
 output.ll
 *.o

@@ -1,6 +1,6 @@
-#include "../include/codegen.h"
-#include "../include/lexer.h"
-#include "../include/parser.h"
+#include "codegen.h"
+#include "lexer.h"
+#include "parser.h"
 
 #include <cstdio>
 #include <iostream>

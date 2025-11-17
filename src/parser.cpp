@@ -1,4 +1,4 @@
-#include "../include/parser.h"
+#include "parser.h"
 
 void Parser::consumeToken() {
     if (mTokenBuffer.empty()) {
@@ -31,11 +31,11 @@ void Parser::putBackToken(TOKEN token) { mTokenBuffer.push_front(token); }
 // void putBackToken(TOKEN tok) { tok_buffer.push_front(tok); }
 */
 
-static void ReportError(TOKEN tok, const char *Str) {
+[[noreturn]] static void ReportError(TOKEN tok, const char *Str) {
     throw ParseError(Str, tok.lineNo, tok.columnNo);
 }
 
-static void ReportError(const char *Str) { throw ParseError(Str); }
+[[noreturn]] static void ReportError(const char *Str) { throw ParseError(Str); }
 
 static TYPE stringToType(const std::string &s) {
     if (s == "int")
@@ -195,31 +195,33 @@ std::vector<std::unique_ptr<ExprAST>> Parser::ParseArgs() {
     while (true) {
         auto Expression = ParseExper();
         if (!Expression)
-            ReportError(mCurrentToken, "expected expression in function arguments");
+            ReportError(mCurrentToken,
+                        "expected expression in function arguments");
         Args.push_back(std::move(Expression));
 
-        if (mCurrentToken.type == TOKEN_TYPE::COMMA) { 
-            consumeToken(); // eat ','  
-        } else  if (mCurrentToken.type == TOKEN_TYPE::RPAR) { // FOLLOW(args)
+        if (mCurrentToken.type == TOKEN_TYPE::COMMA) {
+            consumeToken();                                  // eat ','
+        } else if (mCurrentToken.type == TOKEN_TYPE::RPAR) { // FOLLOW(args)
             break;
         } else {
-            ReportError(mCurrentToken, "expected ',' or ')' in function arguments");
+            ReportError(mCurrentToken,
+                        "expected ',' or ')' in function arguments");
         }
     }
 
     return Args;
 }
 
-std::unique_ptr<ExprAST> Parser::ParsePrimaryTail(
-    std::unique_ptr<VariableASTnode> Callee) {
+std::unique_ptr<ExprAST>
+Parser::ParsePrimaryTail(std::unique_ptr<VariableASTnode> Callee) {
     if (mCurrentToken.type == TOKEN_TYPE::LPAR) {
         consumeToken(); // eat '('
         auto Args = ParseArgs();
         if (mCurrentToken.type != TOKEN_TYPE::RPAR)
             ReportError(mCurrentToken, "expected ')' after function arguments");
         consumeToken(); // eat ')'
-        return std::make_unique<CallExprAST>(std::move(Callee),
-                                             std::make_unique<ArgsAST>(std::move(Args)));
+        return std::make_unique<CallExprAST>(
+            std::move(Callee), std::make_unique<ArgsAST>(std::move(Args)));
     } else {
         // variable reference
         return std::move(Callee);
@@ -229,7 +231,8 @@ std::unique_ptr<ExprAST> Parser::ParsePrimaryTail(
 std::unique_ptr<ExprAST> Parser::ParsePrimary() {
     if (mCurrentToken.type == TOKEN_TYPE::IDENT) {
         std::string idName = mCurrentToken.getIdentifierStr();
-        auto Variable = std::make_unique<VariableASTnode>(mCurrentToken, idName);
+        auto Variable =
+            std::make_unique<VariableASTnode>(mCurrentToken, idName);
         consumeToken(); // eat IDENT
         return ParsePrimaryTail(std::move(Variable));
     } else if (mCurrentToken.type == TOKEN_TYPE::INT_LIT) {
@@ -248,7 +251,8 @@ std::unique_ptr<ExprAST> Parser::ParsePrimary() {
         consumeToken(); // eat ')'
         return Expression;
     } else {
-        ReportError(mCurrentToken, "unknown token when expecting an expression");
+        ReportError(mCurrentToken,
+                    "unknown token when expecting an expression");
     }
 }
 
@@ -281,7 +285,8 @@ std::unique_ptr<ExprAST> Parser::ParseMultiplicative() {
         if (!RHS)
             ReportError(mCurrentToken,
                         "expected expression after '*', '/', or '%' operator");
-        LHS = std::make_unique<BinaryExprAST>(std::move(LHS), Op, std::move(RHS));
+        LHS =
+            std::make_unique<BinaryExprAST>(std::move(LHS), Op, std::move(RHS));
     }
 
     return LHS;
@@ -300,7 +305,8 @@ std::unique_ptr<ExprAST> Parser::ParseAdditive() {
         if (!RHS)
             ReportError(mCurrentToken,
                         "expected expression after '+' or '-' operator");
-        LHS = std::make_unique<BinaryExprAST>(std::move(LHS), Op, std::move(RHS));
+        LHS =
+            std::make_unique<BinaryExprAST>(std::move(LHS), Op, std::move(RHS));
     }
 
     return LHS;
@@ -321,7 +327,8 @@ std::unique_ptr<ExprAST> Parser::ParseRelational() {
         if (!RHS)
             ReportError(mCurrentToken,
                         "expected expression after relational operator");
-        LHS = std::make_unique<BinaryExprAST>(std::move(LHS), Op, std::move(RHS));
+        LHS =
+            std::make_unique<BinaryExprAST>(std::move(LHS), Op, std::move(RHS));
     }
 
     return LHS;
@@ -338,8 +345,10 @@ std::unique_ptr<ExprAST> Parser::ParseEquality() {
         consumeToken(); // eat '==' or '!='
         auto RHS = ParseRelational();
         if (!RHS)
-            ReportError(mCurrentToken, "expected expression after '==' or '!='");
-        LHS = std::make_unique<BinaryExprAST>(std::move(LHS), Op, std::move(RHS));
+            ReportError(mCurrentToken,
+                        "expected expression after '==' or '!='");
+        LHS =
+            std::make_unique<BinaryExprAST>(std::move(LHS), Op, std::move(RHS));
     }
 
     return LHS;
@@ -356,7 +365,8 @@ std::unique_ptr<ExprAST> Parser::ParseLogicalAnd() {
         auto RHS = ParseEquality();
         if (!RHS)
             ReportError(mCurrentToken, "expected expression after '&&'");
-        LHS = std::make_unique<BinaryExprAST>(std::move(LHS), Op, std::move(RHS));
+        LHS =
+            std::make_unique<BinaryExprAST>(std::move(LHS), Op, std::move(RHS));
     }
 
     return LHS;
@@ -375,7 +385,8 @@ std::unique_ptr<ExprAST> Parser::ParseLogicalOr() {
         if (!RHS)
             ReportError(mCurrentToken, "expected expression after '||'");
 
-        LHS = std::make_unique<BinaryExprAST>(std::move(LHS), Op, std::move(RHS));
+        LHS =
+            std::make_unique<BinaryExprAST>(std::move(LHS), Op, std::move(RHS));
     }
 
     return LHS;
@@ -394,14 +405,16 @@ std::unique_ptr<ExprAST> Parser::ParseExper() {
             auto rhs = ParseExper();
             if (!rhs)
                 // TODO: this should probably report an error
-                ReportError(idToken,
-                            "expected expression on right-hand side of assignment");
+                ReportError(
+                    idToken,
+                    "expected expression on right-hand side of assignment");
 
             return std::make_unique<AssignExprAST>(
                 std::make_unique<VariableASTnode>(idToken, idName),
                 std::move(rhs));
         } else {
-            // Not an assignment, put back the IDENT token and parse as logical_or
+            // Not an assignment, put back the IDENT token and parse as
+            // logical_or
             putBackToken(idToken);
         }
     }
@@ -533,26 +546,32 @@ std::unique_ptr<ReturnAST> Parser::ParseReturnStmt() {
 }
 
 std::unique_ptr<WhileExprAST> Parser::ParseWhileStmt() {
+    if (mCurrentToken.type != TOKEN_TYPE::WHILE) {
+        ReportError(mCurrentToken,
+                    "expected 'while' in while statement declaration");
+    }
 
     consumeToken(); // eat the while.
-    if (mCurrentToken.type == TOKEN_TYPE::LPAR) {
-        consumeToken(); // eat (
-        // condition.
-        auto Cond = ParseExper();
-        if (!Cond)
-            return nullptr;
-        if (mCurrentToken.type != TOKEN_TYPE::RPAR)
-            ReportError(mCurrentToken, "expected )");
-        consumeToken(); // eat )
 
-        auto Body = ParseBlock();
-        if (!Body)
-            ReportError(mCurrentToken,
-                        "expected { to start body block of while statment");
-
-        return std::make_unique<WhileExprAST>(std::move(Cond), std::move(Body));
-    } else
+    if (mCurrentToken.type != TOKEN_TYPE::LPAR) {
         ReportError(mCurrentToken, "expected (");
+    }
+    consumeToken(); // eat (
+
+    // condition.
+    auto Cond = ParseExper();
+    if (!Cond)
+        ReportError(mCurrentToken,
+                    "expected expression in while statement condition");
+
+    if (mCurrentToken.type != TOKEN_TYPE::RPAR)
+        ReportError(mCurrentToken, "expected )");
+
+    consumeToken(); // eat )
+
+    auto Body = ParseBlock();
+
+    return std::make_unique<WhileExprAST>(std::move(Cond), std::move(Body));
 }
 
 std::unique_ptr<ASTnode> Parser::ParseStmt() {
@@ -844,7 +863,8 @@ std::unique_ptr<DeclAST> Parser::ParseDecl() {
                 consumeToken();   // eat ;
 
                 if (typeTok.type != TOKEN_TYPE::VOID_TOK)
-                    return std::make_unique<GlobVarDeclAST>(IdName, stringToType(typeTok.lexeme));
+                    return std::make_unique<GlobVarDeclAST>(
+                        IdName, stringToType(typeTok.lexeme));
                 else
                     ReportError(
                         typeTok,
@@ -862,8 +882,8 @@ std::unique_ptr<DeclAST> Parser::ParseDecl() {
                     ReportError(mCurrentToken,
                                 "expected ')' in function declaration");
 
-                consumeToken();                             // eat )
-                
+                consumeToken(); // eat )
+
                 auto B = ParseBlock(); // parse the function body
                 if (!B)
                     ReportError(
@@ -912,7 +932,8 @@ std::unique_ptr<FunctionPrototypeAST> Parser::ParseExtern() {
     TOKEN PrevTok;
 
     if (mCurrentToken.type != TOKEN_TYPE::EXTERN) {
-        return nullptr;
+        ReportError(mCurrentToken,
+                    "expected 'extern' in extern function declaration");
     }
 
     consumeToken(); // eat the EXTERN
@@ -931,42 +952,40 @@ std::unique_ptr<FunctionPrototypeAST> Parser::ParseExtern() {
         }
 
         IdName = mCurrentToken.getIdentifierStr(); // save the identifier name
-        consumeToken(); // eat the IDENT
+        consumeToken();                            // eat the IDENT
 
-        if (mCurrentToken.type !=
-            TOKEN_TYPE::LPAR) 
+        if (mCurrentToken.type != TOKEN_TYPE::LPAR)
+            ReportError(mCurrentToken, "expected ;' in ending extern function "
+                                       "declaration statement");
+
+        consumeToken(); // eat (
+
+        auto P = ParseParams(); // parse the parameters, returns a
+                                // vector of params
+
+        if (mCurrentToken.type != TOKEN_TYPE::RPAR) // syntax error
             ReportError(mCurrentToken,
-                        "expected ;' in ending extern function "
-                        "declaration statement");
-            
-            consumeToken(); // eat (
+                        "expected ')' in closing extern function "
+                        "declaration");
 
-            auto P = ParseParams(); // parse the parameters, returns a
-                                    // vector of params
+        consumeToken(); // eat )
 
-            if (mCurrentToken.type != TOKEN_TYPE::RPAR) // syntax error
-                ReportError(mCurrentToken,
-                            "expected ')' in closing extern function "
-                            "declaration");
-
-            consumeToken(); // eat )
-
-            if (mCurrentToken.type == TOKEN_TYPE::SC) {
-                consumeToken(); // eat ";"
-                auto Proto = std::make_unique<FunctionPrototypeAST>(
-                    IdName, stringToType(PrevTok.lexeme), std::move(P));
-                return std::move(Proto);
+        if (mCurrentToken.type == TOKEN_TYPE::SC) {
+            consumeToken(); // eat ";"
+            auto Proto = std::make_unique<FunctionPrototypeAST>(
+                IdName, stringToType(PrevTok.lexeme), std::move(P));
+            return std::move(Proto);
         } else
             ReportError(mCurrentToken,
                         "expected (' in extern function declaration");
     } else
-        ReportError(
-            mCurrentToken,
-            "expected 'void', 'int', 'bool' or 'float' in extern function declaration");
+        ReportError(mCurrentToken, "expected 'void', 'int', 'bool' or 'float' "
+                                   "in extern function declaration");
 }
 
 std::vector<std::unique_ptr<FunctionPrototypeAST>> Parser::ParseExternList() {
-    std::vector<std::unique_ptr<FunctionPrototypeAST>> externs; // vector of extern function prototypes
+    std::vector<std::unique_ptr<FunctionPrototypeAST>>
+        externs; // vector of extern function prototypes
 
     // Parse externs
     while (mCurrentToken.type == TOKEN_TYPE::EXTERN) {
@@ -1001,22 +1020,23 @@ std::vector<std::unique_ptr<ASTnode>> Parser::parse() {
 
     if (mCurrentToken.type == TOKEN_TYPE::EOF_TOK)
         return stmts;
-    
+
     auto externs = ParseExternList();
-    for (auto& ext : externs) {
+    for (auto &ext : externs) {
         stmts.push_back(std::move(ext));
     }
 
     if (mCurrentToken.type == TOKEN_TYPE::EOF_TOK)
         return stmts;
-    
+
     auto decls = ParseDeclList();
-    for (auto& decl : decls) {
+    for (auto &decl : decls) {
         stmts.push_back(std::move(decl));
     }
 
     if (mCurrentToken.type == TOKEN_TYPE::EOF_TOK)
         return stmts;
-    
-    ReportError(mCurrentToken, "expected EOF token after parsing extern and decl lists");
+
+    ReportError(mCurrentToken,
+                "expected EOF token after parsing extern and decl lists");
 }

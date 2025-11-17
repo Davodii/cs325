@@ -7,6 +7,7 @@ enum class TYPE {
     INT,
     FLOAT,
     BOOL,
+    VOID,
 };
 
 enum class IDENT_TYPE {
