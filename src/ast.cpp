@@ -1,6 +1,6 @@
 #include "ast.h"
 
-std::string typeToString(TYPE type) {
+static std::string typeToString(TYPE type) {
     if (type == TYPE::BOOL) {
         return "BOOL";
     }

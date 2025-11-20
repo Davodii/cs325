@@ -1,6 +1,7 @@
 #include "codegen.h"
 #include "lexer.h"
 #include "parser.h"
+#include "error_reporter.h"
 
 #include <cstdio>
 #include <iostream>
@@ -12,17 +13,20 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    // Initialise the error reporter
+    ErrorReporter errorReporter;
+
     // Initialize Lexer
     Lexer lexer(argv[1]);
 
     // Create the Parser
-    Parser parser(lexer);
+    Parser parser(lexer, errorReporter);
 
     // Run parser to build the AST
     std::vector<std::unique_ptr<ASTnode>> ast;
     try {
         ast = parser.parse();
-    } catch (const ParseError &e) {
+    } catch (const std::exception &e) {
         fprintf(stderr, "%s\n", e.what());
         return 2;
     }

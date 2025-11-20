@@ -3,45 +3,11 @@
 
 #include "ast.h"
 #include "lexer.h"
-#include <queue>
-
-#include <string>
-
-/**
- * @brief Exception class for parse errors.
- *
- */
-class ParseError : public std::exception {
-  public:
-    ParseError(std::string msg, int line = -1, int col = -1)
-        : mMessage(std::move(msg)), mLineNumber(line), mColumnNumber(col) {
-        if (line != -1 && col != -1) {
-            mFormattedMessage = std::to_string(mLineNumber) + ":" +
-                                std::to_string(mColumnNumber) +
-                                " Error: " + mMessage;
-        } else {
-            mFormattedMessage = "Error: " + mMessage;
-        }
-    }
-
-    const char *what() const noexcept override {
-        return mFormattedMessage.c_str();
-    }
-
-    int getLineNumber() const { return mLineNumber; }
-
-    int getColumnNumber() const { return mColumnNumber; }
-
-  private:
-    std::string mMessage;
-    int mLineNumber;
-    int mColumnNumber;
-    std::string mFormattedMessage;
-};
+#include "error_reporter.h"
 
 class Parser {
   public:
-    Parser(Lexer &lexer) : mLexer(lexer) {
+    Parser(Lexer &lexer, ErrorReporter &errorReporter) : mLexer(lexer), mErrorReporter(errorReporter) {
         // Prime the pump by getting the first token
         consumeToken();
     }
@@ -53,8 +19,11 @@ class Parser {
      */
     std::vector<std::unique_ptr<ASTnode>> parse();
 
+    virtual ~Parser() = default;
+
   private:
     Lexer &mLexer;
+    ErrorReporter &mErrorReporter;
 
     /**
      * @brief The current token being processed.
@@ -63,10 +32,12 @@ class Parser {
     TOKEN mCurrentToken;
 
     /**
-     * @brief A buffer to hold tokens that have been put back.
-     *
+     * @brief Convert a string to its equivalent TYPE enum.
+     * 
+     * @param s 
+     * @return TYPE 
      */
-    // std::deque<TOKEN> mTokenBuffer;
+    TYPE stringToType(const std::string &s) const;
 
     /**
      * @brief Consume the next token from the lexer or from the token buffer.

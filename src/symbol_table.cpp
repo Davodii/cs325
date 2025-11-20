@@ -1,4 +1,5 @@
 #include "../include/symbol_table.h"
+#include <stdexcept>
 
 SymbolTable::SymbolTable() {
     // Start with a global scope
@@ -24,7 +25,7 @@ void SymbolTable::leaveScope() {
 bool SymbolTable::addSymbol(const Symbol &symbol) {
     auto &currentScope = scopeStack.back();
     // Check for re-declaration in the current scope
-    if (currentScope.find(symbol.name) != currentScope.end()) {
+    if (currentScope.find(symbol.getName()) != currentScope.end()) {
         return false; // Re-declaration found
     }
 
@@ -32,7 +33,7 @@ bool SymbolTable::addSymbol(const Symbol &symbol) {
     //       This allows for shadowing of variables in inner scopes.
 
     // Add the symbol to the current scope
-    currentScope[symbol.name] = symbol;
+    currentScope[symbol.getName()] = symbol;
     return true;
 }
 

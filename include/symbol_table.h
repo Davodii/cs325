@@ -1,11 +1,8 @@
 #ifndef MC_SYMBOL_TABLE_H
 #define MC_SYMBOL_TABLE_H
 
-#include "ast.h"
 #include "symbol.h"
 #include <map>
-#include <memory>
-#include <stdexcept>
 #include <string>
 #include <vector>
 

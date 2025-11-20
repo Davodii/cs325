@@ -2,6 +2,7 @@
 #define MC_LEXER_H
 
 #include <string>
+#include "source_location.h"
 
 // The lexer returns one of these for known things.
 enum class TOKEN_TYPE {
@@ -72,8 +73,7 @@ class TOKEN {
     TOKEN() = default;
     TOKEN_TYPE type = TOKEN_TYPE::INVALID;
     std::string lexeme;
-    int lineNo;
-    int columnNo;
+    SourceLoc loc;
     const std::string getIdentifierStr() const;
     const int getIntVal() const;
     const float getFloatVal() const;

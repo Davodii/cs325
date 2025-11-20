@@ -4,7 +4,16 @@
 #include "types.h"
 #include <string>
 
-struct Symbol {
+class Symbol {
+public:
+    Symbol() = default;
+    Symbol(const std::string &name, TYPE type, IDENT_TYPE identType)
+        : name(name), type(type), identType(identType) {}
+
+    const std::string &getName() const { return name; }
+    TYPE getType() const { return type; }
+    IDENT_TYPE getIdentType() const { return identType; }
+private:
     std::string name;
     TYPE type;
     IDENT_TYPE identType;

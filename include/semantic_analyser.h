@@ -1,12 +1,18 @@
 #ifndef MC_SEMANTIC_ANALYSER_H
 #define MC_SEMANTIC_ANALYSER_H
 
-#include "ast_visitor.h"
+#include "ast.h"
 #include "symbol_table.h"
+#include "error_reporter.h"
+#include <memory>
 
 class SemanticAnalyser {
   public:
-    SemanticAnalyser();
+    SemanticAnalyser(ErrorReporter &errorReporter)
+        : mErrorReporter(errorReporter), mSymbolTable() {
+        // Add a initial global scope
+        mSymbolTable.enterScope();
+    }
 
     /**
      * @brief Run the semantic analysis on the given AST.
@@ -17,13 +23,15 @@ class SemanticAnalyser {
     void run(std::vector<std::unique_ptr<ASTnode>> ast);
 
   private:
+    ErrorReporter &mErrorReporter;
+
     SymbolTable mSymbolTable;
     // --- Recursive analysis methods ---
     // Take ownership of a node and return ownership of the
     // (potentially) new node.
 
     // For top-level declarations and statements;
-    void analyse(std::unique_ptr<ASTnode> &node);
+    // void analyse(std::unique_ptr<ASTnode> &node);
 
     // For expressions. Returns a unique_ptr because
     // an expression can be replaced.
@@ -31,12 +39,6 @@ class SemanticAnalyser {
     analyseExpression(std::unique_ptr<ExprAST> expression);
 
     // Specific helpers for different statement types
-    void analyseBlock(BlockAST *block);
-    void analyseIf(IfExprAST *ifStmt);
-    void analyseWhile(WhileExprAST *whileStmt);
-    void analyseReturn(ReturnAST *returnStmt);
-    void analyseVarDeclaration(VarDeclAST *variableDeclaration);
-    void analyseFunctionDeclaration(FunctionDeclAST *functionDeclaration);
 
     /// TODO: add more helper functions as needed
 };

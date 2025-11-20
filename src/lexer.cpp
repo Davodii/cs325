@@ -1,5 +1,6 @@
 #include "lexer.h"
 #include "parser.h"
+#include "source_location.h"
 #include <cstdio>
 
 Lexer::Lexer(const char *filename) {
@@ -24,7 +25,7 @@ Lexer::~Lexer() {
 
 const std::string TOKEN::getIdentifierStr() const {
     if (type != TOKEN_TYPE::IDENT) {
-        fprintf(stderr, "%d:%d Error: %s\n", lineNo, columnNo,
+        fprintf(stderr, "%d:%d Error: %s\n", loc.line, loc.column,
                 "getIdentifierStr called on non-IDENT token");
         exit(2);
     }
@@ -33,7 +34,7 @@ const std::string TOKEN::getIdentifierStr() const {
 
 const int TOKEN::getIntVal() const {
     if (type != TOKEN_TYPE::INT_LIT) {
-        fprintf(stderr, "%d:%d Error: %s\n", lineNo, columnNo,
+        fprintf(stderr, "%d:%d Error: %s\n", loc.line, loc.column,
                 "getIntVal called on non-INT_LIT token");
         exit(2);
     }
@@ -42,7 +43,7 @@ const int TOKEN::getIntVal() const {
 
 const float TOKEN::getFloatVal() const {
     if (type != TOKEN_TYPE::FLOAT_LIT) {
-        fprintf(stderr, "%d:%d Error: %s\n", lineNo, columnNo,
+        fprintf(stderr, "%d:%d Error: %s\n", loc.line, loc.column,
                 "getFloatVal called on non-FLOAT_LIT token");
         exit(2);
     }
@@ -51,7 +52,7 @@ const float TOKEN::getFloatVal() const {
 
 const bool TOKEN::getBoolVal() const {
     if (type != TOKEN_TYPE::BOOL_LIT) {
-        fprintf(stderr, "%d:%d Error: %s\n", lineNo, columnNo,
+        fprintf(stderr, "%d:%d Error: %s\n", loc.line, loc.column,
                 "getBoolVal called on non-BOOL_LIT token");
         exit(2);
     }
@@ -62,8 +63,10 @@ TOKEN Lexer::returnToken(std::string lexVal, TOKEN_TYPE tokType) {
     TOKEN return_tok;
     return_tok.lexeme = lexVal;
     return_tok.type = tokType;
-    return_tok.lineNo = mLineNo;
-    return_tok.columnNo = mColumnNo - lexVal.length() - 1;
+    return_tok.loc = SourceLoc {
+        mLineNo,
+        mColumnNo - static_cast<int>(lexVal.length()) - 1,
+    };
     return return_tok;
 }
 

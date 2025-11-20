@@ -22,7 +22,6 @@ class ASTnode {
     std::string indentString(int indent) const {
         return std::string(indent * 2, ' '); // 2 spaces per level
     }
-    std::string typeToString(TYPE type) const;
 };
 
 /**
@@ -44,12 +43,10 @@ class ExprAST : public ASTnode {
   public:
     virtual ~ExprAST() = default;
     virtual std::string to_string(int indent = 0) const;
-
-  protected:
-    std::string operatorToString(TOKEN_TYPE op) const;
-
-  private:
-    TYPE mType;
+    TYPE getType() const { return mInferredType; };
+    void setType(TYPE type) { mInferredType = type; };
+protected:
+    TYPE mInferredType;
 };
 
 /**
@@ -58,8 +55,10 @@ class ExprAST : public ASTnode {
  */
 class IntASTnode : public ExprAST {
   public:
-    IntASTnode(const TOKEN &tok, int val) : mVal(val), mToken(tok) {}
-    std::string to_string(int indent = 0) const;
+    IntASTnode(const TOKEN &tok, int val) : mVal(val), mToken(tok) {
+        mInferredType = TYPE::INT;
+    }
+    std::string to_string(int indent = 0) const override;
 
   private:
     int mVal;
@@ -72,8 +71,10 @@ class IntASTnode : public ExprAST {
  */
 class BoolASTnode : public ExprAST {
   public:
-    BoolASTnode(const TOKEN &tok, bool B) : mBool(B), mToken(tok) {}
-    std::string to_string(int indent = 0) const;
+    BoolASTnode(const TOKEN &tok, bool B) : mBool(B), mToken(tok) {
+        mInferredType = TYPE::BOOL;
+    }
+    std::string to_string(int indent = 0) const override;
 
   private:
     bool mBool;
@@ -86,8 +87,10 @@ class BoolASTnode : public ExprAST {
  */
 class FloatASTnode : public ExprAST {
   public:
-    FloatASTnode(const TOKEN &tok, double val) : mVal(val), mToken(tok) {}
-    std::string to_string(int indent = 0) const;
+    FloatASTnode(const TOKEN &tok, double val) : mVal(val), mToken(tok) {
+        mInferredType = TYPE::FLOAT;
+    }
+    std::string to_string(int indent = 0) const override;
 
   private:
     double mVal;
@@ -105,13 +108,21 @@ class VariableASTnode : public ExprAST {
     VariableASTnode(const TOKEN &tok, const std::string &name)
         : mToken(tok), mName(name) {}
     const std::string &getName() const { return mName; }
-    std::string to_string(int indent = 0) const;
+    std::string to_string(int indent = 0) const override;
 
-    Symbol *resolvedSymbol;
+    Symbol *getResolvedSymbol() const { return mpResolvedSymbol; }
+    void setResolvedSymbol(Symbol *symbol) { mpResolvedSymbol = symbol; }
+    
+    TYPE getType() const {
+        assert(mpResolvedSymbol && "Symbol not resolved for variable");
+        return mpResolvedSymbol->getType();
+    }
 
   private:
     TOKEN mToken;
     std::string mName;
+    Symbol *mpResolvedSymbol;
+
 };
 
 /**
@@ -125,7 +136,7 @@ class AssignExprAST : public ExprAST {
         : mVariable(std::move(variable)), mExpression(std::move(expression)) {}
 
     /// Return the type of the expression
-    std::string to_string(int indent = 0) const;
+    std::string to_string(int indent = 0) const override;
 
   private:
     std::unique_ptr<VariableASTnode> mVariable;
@@ -328,13 +339,13 @@ class IfExprAST : public ASTnode {
 class WhileExprAST : public ASTnode {
   public:
     WhileExprAST(std::unique_ptr<ExprAST> condition,
-                 std::unique_ptr<BlockAST> body)
+                 std::unique_ptr<ASTnode> body)
         : mCondition(std::move(condition)), mBody(std::move(body)) {}
     std::string to_string(int indent = 0) const;
 
   private:
     std::unique_ptr<ExprAST> mCondition;
-    std::unique_ptr<BlockAST> mBody;
+    std::unique_ptr<ASTnode> mBody;
 };
 
 /**
