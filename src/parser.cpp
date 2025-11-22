@@ -1,5 +1,9 @@
 #include "parser.h"
+#include "ast.h"
 #include "lexer.h"
+#include "source_location.h"
+#include <memory>
+#include <vector>
 
 void Parser::consumeToken() { mCurrentToken = mLexer.getNextToken(); }
 
@@ -17,7 +21,7 @@ TYPE Parser::stringToType(const std::string &s) const {
 }
 
 std::unique_ptr<FloatASTnode> Parser::ParseFloatNumberExpr() {
-    auto Result = std::make_unique<FloatASTnode>(mCurrentToken,
+    auto Result = std::make_unique<FloatASTnode>(mCurrentToken.loc, mCurrentToken,
                                                  mCurrentToken.getFloatVal());
     consumeToken(); // consume the number
     return std::move(Result);
@@ -25,13 +29,13 @@ std::unique_ptr<FloatASTnode> Parser::ParseFloatNumberExpr() {
 
 std::unique_ptr<IntASTnode> Parser::ParseIntNumberExpr() {
     auto Result =
-        std::make_unique<IntASTnode>(mCurrentToken, mCurrentToken.getIntVal());
+        std::make_unique<IntASTnode>(mCurrentToken.loc, mCurrentToken, mCurrentToken.getIntVal());
     consumeToken(); // consume the number
     return std::move(Result);
 }
 
 std::unique_ptr<BoolASTnode> Parser::ParseBoolExpr() {
-    auto Result = std::make_unique<BoolASTnode>(mCurrentToken,
+    auto Result = std::make_unique<BoolASTnode>(mCurrentToken.loc, mCurrentToken,
                                                 mCurrentToken.getBoolVal());
     consumeToken(); // consume the number
     return std::move(Result);
@@ -70,14 +74,18 @@ std::vector<std::unique_ptr<ExprAST>> Parser::ParseArgs() {
 
 std::unique_ptr<ExprAST>
 Parser::ParsePrimaryTail(std::unique_ptr<VariableASTnode> Callee) {
+    // Make a copy of the current location
+    SourceLoc callLoc = mCurrentToken.loc;
     if (mCurrentToken.type == TOKEN_TYPE::LPAR) {
         consumeToken(); // eat '('
+        SourceLoc argsLoc = mCurrentToken.loc;
         auto Args = ParseArgs();
         if (mCurrentToken.type != TOKEN_TYPE::RPAR)
             mErrorReporter.panic(mCurrentToken.loc, "')' after function arguments", mCurrentToken.lexeme);
         consumeToken(); // eat ')'
-        return std::make_unique<CallExprAST>(
-            std::move(Callee), std::make_unique<ArgsAST>(std::move(Args)));
+        return std::make_unique<CallExprAST>(callLoc,
+            std::move(Callee), 
+            std::make_unique<ArgsAST>(argsLoc, std::move(Args)));
     } else {
         // variable reference
         return std::move(Callee);
@@ -86,9 +94,10 @@ Parser::ParsePrimaryTail(std::unique_ptr<VariableASTnode> Callee) {
 
 std::unique_ptr<ExprAST> Parser::ParsePrimary() {
     if (mCurrentToken.type == TOKEN_TYPE::IDENT) {
+        SourceLoc primaryLoc = mCurrentToken.loc;
         std::string idName = mCurrentToken.getIdentifierStr();
         auto Variable =
-            std::make_unique<VariableASTnode>(mCurrentToken, idName);
+            std::make_unique<VariableASTnode>(primaryLoc, mCurrentToken, idName);
         consumeToken(); // eat IDENT
         return ParsePrimaryTail(std::move(Variable));
     } else if (mCurrentToken.type == TOKEN_TYPE::INT_LIT) {
@@ -115,13 +124,14 @@ std::unique_ptr<ExprAST> Parser::ParseUnary() {
     if (mCurrentToken.type == TOKEN_TYPE::MINUS ||
         mCurrentToken.type == TOKEN_TYPE::NOT) {
         TOKEN_TYPE Op = mCurrentToken.type;
+        SourceLoc opLoc = mCurrentToken.loc;
         consumeToken(); // eat '-' or '!'
         auto Expression = ParseUnary();
         if (!Expression)
             mErrorReporter.panic(mCurrentToken.loc,
                         "expression after unary '-' or '!' operator",
                         mCurrentToken.lexeme);
-        return std::make_unique<UnaryExprAST>(Op, std::move(Expression));
+        return std::make_unique<UnaryExprAST>(opLoc, Op, std::move(Expression));
     } else {
         return ParsePrimary();
     }
@@ -136,6 +146,7 @@ std::unique_ptr<ExprAST> Parser::ParseMultiplicative() {
            mCurrentToken.type == TOKEN_TYPE::DIV ||
            mCurrentToken.type == TOKEN_TYPE::MOD) {
         TOKEN_TYPE Op = mCurrentToken.type;
+        SourceLoc opLoc = mCurrentToken.loc;
         consumeToken(); // eat '*', '/', or '%'
         auto RHS = ParseUnary();
         if (!RHS)
@@ -143,7 +154,7 @@ std::unique_ptr<ExprAST> Parser::ParseMultiplicative() {
                         "expression after '*', '/', or '%' operator",
                         mCurrentToken.lexeme);
         LHS =
-            std::make_unique<BinaryExprAST>(std::move(LHS), Op, std::move(RHS));
+            std::make_unique<BinaryExprAST>(opLoc, std::move(LHS), Op, std::move(RHS));
     }
 
     return LHS;
@@ -157,6 +168,7 @@ std::unique_ptr<ExprAST> Parser::ParseAdditive() {
     while (mCurrentToken.type == TOKEN_TYPE::PLUS ||
            mCurrentToken.type == TOKEN_TYPE::MINUS) {
         TOKEN_TYPE Op = mCurrentToken.type;
+        SourceLoc opLoc = mCurrentToken.loc;
         consumeToken(); // eat '+' or '-'
         auto RHS = ParseMultiplicative();
         if (!RHS)
@@ -164,7 +176,7 @@ std::unique_ptr<ExprAST> Parser::ParseAdditive() {
                         "expression after '+' or '-' operator",
                         mCurrentToken.lexeme);
         LHS =
-            std::make_unique<BinaryExprAST>(std::move(LHS), Op, std::move(RHS));
+            std::make_unique<BinaryExprAST>(opLoc, std::move(LHS), Op, std::move(RHS));
     }
 
     return LHS;
@@ -180,6 +192,7 @@ std::unique_ptr<ExprAST> Parser::ParseRelational() {
            mCurrentToken.type == TOKEN_TYPE::LE ||
            mCurrentToken.type == TOKEN_TYPE::GE) {
         TOKEN_TYPE Op = mCurrentToken.type;
+        SourceLoc opLoc = mCurrentToken.loc;
         consumeToken(); // eat '<', '>', '<=', '>='
         auto RHS = ParseAdditive();
         if (!RHS)
@@ -187,7 +200,7 @@ std::unique_ptr<ExprAST> Parser::ParseRelational() {
                         "expression after relational operator",
                         mCurrentToken.lexeme);
         LHS =
-            std::make_unique<BinaryExprAST>(std::move(LHS), Op, std::move(RHS));
+            std::make_unique<BinaryExprAST>(opLoc, std::move(LHS), Op, std::move(RHS));
     }
 
     return LHS;
@@ -201,6 +214,7 @@ std::unique_ptr<ExprAST> Parser::ParseEquality() {
     while (mCurrentToken.type == TOKEN_TYPE::EQ ||
            mCurrentToken.type == TOKEN_TYPE::NE) {
         TOKEN_TYPE Op = mCurrentToken.type;
+        SourceLoc opLoc = mCurrentToken.loc;
         consumeToken(); // eat '==' or '!='
         auto RHS = ParseRelational();
         if (!RHS)
@@ -208,7 +222,7 @@ std::unique_ptr<ExprAST> Parser::ParseEquality() {
                         "expression after '==' or '!=' operator",
                         mCurrentToken.lexeme);
         LHS =
-            std::make_unique<BinaryExprAST>(std::move(LHS), Op, std::move(RHS));
+            std::make_unique<BinaryExprAST>(opLoc, std::move(LHS), Op, std::move(RHS));
     }
 
     return LHS;
@@ -221,6 +235,7 @@ std::unique_ptr<ExprAST> Parser::ParseLogicalAnd() {
 
     while (mCurrentToken.type == TOKEN_TYPE::AND) {
         TOKEN_TYPE Op = mCurrentToken.type;
+        SourceLoc opLoc = mCurrentToken.loc;
         consumeToken(); // eat '&&'
         auto RHS = ParseEquality();
         if (!RHS)
@@ -228,7 +243,7 @@ std::unique_ptr<ExprAST> Parser::ParseLogicalAnd() {
                         "expression after '&&' operator",
                         mCurrentToken.lexeme);
         LHS =
-            std::make_unique<BinaryExprAST>(std::move(LHS), Op, std::move(RHS));
+            std::make_unique<BinaryExprAST>(opLoc, std::move(LHS), Op, std::move(RHS));
     }
 
     return LHS;
@@ -241,6 +256,7 @@ std::unique_ptr<ExprAST> Parser::ParseLogicalOr() {
 
     while (mCurrentToken.type == TOKEN_TYPE::OR) {
         TOKEN_TYPE Op = mCurrentToken.type;
+        SourceLoc opLoc = mCurrentToken.loc;
         consumeToken(); // eat '||'
 
         auto RHS = ParseLogicalAnd();
@@ -250,7 +266,7 @@ std::unique_ptr<ExprAST> Parser::ParseLogicalOr() {
                         mCurrentToken.lexeme);
 
         LHS =
-            std::make_unique<BinaryExprAST>(std::move(LHS), Op, std::move(RHS));
+            std::make_unique<BinaryExprAST>(opLoc, std::move(LHS), Op, std::move(RHS));
     }
 
     return LHS;
@@ -260,6 +276,7 @@ std::unique_ptr<ExprAST> Parser::ParseExper() {
     // Check for assignment
     if (mCurrentToken.type == TOKEN_TYPE::IDENT) {
         TOKEN idToken = mCurrentToken;
+        SourceLoc primaryLoc = mCurrentToken.loc;
         TOKEN next = mLexer.peekToken();
 
         if (next.type == TOKEN_TYPE::ASSIGN) {
@@ -273,8 +290,8 @@ std::unique_ptr<ExprAST> Parser::ParseExper() {
                     "expression on right-hand side of assignment",
                     idToken.lexeme);
 
-            return std::make_unique<AssignExprAST>(
-                std::make_unique<VariableASTnode>(idToken, idName),
+            return std::make_unique<AssignExprAST>(primaryLoc,
+                std::make_unique<VariableASTnode>(primaryLoc, idToken, idName),
                 std::move(rhs));
         }
     }
@@ -346,6 +363,14 @@ std::unique_ptr<BlockAST> Parser::ParseElseStmt() {
 }
 
 std::unique_ptr<IfExprAST> Parser::ParseIfStmt() {
+    if (mCurrentToken.type != TOKEN_TYPE::IF) {
+        mErrorReporter.panic(mCurrentToken.loc,
+                    "'if' in if statement declaration",
+                    mCurrentToken.lexeme);
+    }
+
+    SourceLoc ifLoc = mCurrentToken.loc;
+
     consumeToken(); // eat the if.
     if (mCurrentToken.type == TOKEN_TYPE::LPAR) {
         consumeToken(); // eat (
@@ -368,7 +393,7 @@ std::unique_ptr<IfExprAST> Parser::ParseIfStmt() {
             return nullptr;
         auto Else = ParseElseStmt();
 
-        return std::make_unique<IfExprAST>(std::move(Cond), std::move(Then),
+        return std::make_unique<IfExprAST>(ifLoc, std::move(Cond), std::move(Then),
                                            std::move(Else));
 
     } else
@@ -378,11 +403,19 @@ std::unique_ptr<IfExprAST> Parser::ParseIfStmt() {
 }
 
 std::unique_ptr<ReturnAST> Parser::ParseReturnStmt() {
+    if (mCurrentToken.type != TOKEN_TYPE::RETURN) {
+        mErrorReporter.panic(mCurrentToken.loc,
+                    "'return' in return statement declaration",
+                    mCurrentToken.lexeme);
+    }
+
+    SourceLoc returnLoc = mCurrentToken.loc;
+
     consumeToken(); // eat the return
     if (mCurrentToken.type == TOKEN_TYPE::SC) {
         consumeToken(); // eat the ;
         // return a null value
-        return std::make_unique<ReturnAST>(std::move(nullptr));
+        return std::make_unique<ReturnAST>(returnLoc, std::move(nullptr));
     } else if (mCurrentToken.type == TOKEN_TYPE::NOT ||
                mCurrentToken.type == TOKEN_TYPE::MINUS ||
                mCurrentToken.type == TOKEN_TYPE::PLUS ||
@@ -397,7 +430,7 @@ std::unique_ptr<ReturnAST> Parser::ParseReturnStmt() {
 
         if (mCurrentToken.type == TOKEN_TYPE::SC) {
             consumeToken(); // eat the ;
-            return std::make_unique<ReturnAST>(std::move(val));
+            return std::make_unique<ReturnAST>(returnLoc, std::move(val));
         } else
             mErrorReporter.panic(mCurrentToken.loc, "';'", mCurrentToken.lexeme);
     } else
@@ -412,6 +445,8 @@ std::unique_ptr<WhileExprAST> Parser::ParseWhileStmt() {
                     "'while' in while statement declaration",
                     mCurrentToken.lexeme);
     }
+
+    SourceLoc whileLoc = mCurrentToken.loc;
 
     consumeToken(); // eat the while.
 
@@ -433,7 +468,7 @@ std::unique_ptr<WhileExprAST> Parser::ParseWhileStmt() {
 
     auto Body = ParseStmt();
 
-    return std::make_unique<WhileExprAST>(std::move(Cond), std::move(Body));
+    return std::make_unique<WhileExprAST>(whileLoc, std::move(Cond), std::move(Body));
 }
 
 std::unique_ptr<ASTnode> Parser::ParseStmt() {
@@ -584,11 +619,12 @@ std::unique_ptr<VarDeclAST> Parser::ParseLocalDecl() {
         mCurrentToken.type == TOKEN_TYPE::FLOAT_TOK ||
         mCurrentToken.type == TOKEN_TYPE::BOOL_TOK) { // FIRST(var_type)
         PrevTok = mCurrentToken;
+        SourceLoc varDeclLoc = mCurrentToken.loc;
         consumeToken(); // eat 'int' or 'float or 'bool'
         if (mCurrentToken.type == TOKEN_TYPE::IDENT) {
             Type = PrevTok.lexeme;
             Name = mCurrentToken.getIdentifierStr(); // save the identifier name
-            local_decl = std::make_unique<VarDeclAST>(Name, stringToType(Type));
+            local_decl = std::make_unique<VarDeclAST>(varDeclLoc, Name, stringToType(Type));
 
             consumeToken(); // eat 'IDENT'
             if (mCurrentToken.type != TOKEN_TYPE::SC) {
@@ -658,6 +694,8 @@ std::unique_ptr<BlockAST> Parser::ParseBlock() {
                     mCurrentToken.lexeme);
     }
 
+    SourceLoc blockLoc = mCurrentToken.loc;
+
     consumeToken(); // eat '{'
 
     local_decls = ParseLocalDeclList();
@@ -670,67 +708,9 @@ std::unique_ptr<BlockAST> Parser::ParseBlock() {
                     mCurrentToken.lexeme);
     }
 
-    return std::make_unique<BlockAST>(std::move(local_decls),
+    return std::make_unique<BlockAST>(blockLoc, std::move(local_decls),
                                       std::move(stmt_list));
 }
-
-// std::vector<std::unique_ptr<ParamAST>> Parser::ParseParamListPrime() {
-//     std::vector<std::unique_ptr<ParamAST>> param_list;
-
-//     if (mCurrentToken.type == TOKEN_TYPE::COMMA) { // more parameters in list
-//         consumeToken();                            // eat ","
-
-//         auto param = ParseParam();
-//         if (param) {
-//             printf("found param in param_list_prime: %s\n",
-//                    param->getName().c_str());
-//             param_list.push_back(std::move(param));
-//             auto param_list_prime = ParseParamListPrime();
-//             for (unsigned i = 0; i < param_list_prime.size(); i++) {
-//                 param_list.push_back(std::move(param_list_prime.at(i)));
-//             }
-//         }
-//     } else if (mCurrentToken.type ==
-//                TOKEN_TYPE::RPAR) { // FOLLOW(param_list_prime)
-//                                    // expand by param_list_prime ::= ε
-//                                    // do nothing
-//     } else {
-//         ReportError(mCurrentToken,
-//                     "expected ',' or ')' in list of parameter declarations");
-//     }
-
-//     return param_list;
-// }
-
-// std::unique_ptr<ParamAST> Parser::ParseParam() {
-
-//     std::string Type =
-//         mCurrentToken.lexeme; // keep track of the type of the param
-//     consumeToken();           // eat the type token
-//     std::unique_ptr<ParamAST> P;
-
-//     if (mCurrentToken.type == TOKEN_TYPE::IDENT) { // parameter declaration
-//         std::string Name = mCurrentToken.getIdentifierStr();
-//         consumeToken(); // eat "IDENT"
-//     }
-
-//     return P;
-// }
-
-// std::vector<std::unique_ptr<ParamAST>> Parser::ParseParamList() {
-//     std::vector<std::unique_ptr<ParamAST>> param_list;
-
-//     auto param = ParseParam();
-//     if (param) {
-//         param_list.push_back(std::move(param));
-//         auto param_list_prime = ParseParamListPrime();
-//         for (unsigned i = 0; i < param_list_prime.size(); i++) {
-//             param_list.push_back(std::move(param_list_prime.at(i)));
-//         }
-//     }
-
-//     return param_list;
-// }
 
 std::vector<std::unique_ptr<ParamAST>> Parser::ParseParamList() {
     std::vector<std::unique_ptr<ParamAST>> param_list;
@@ -745,13 +725,14 @@ std::vector<std::unique_ptr<ParamAST>> Parser::ParseParamList() {
            mCurrentToken.type == TOKEN_TYPE::FLOAT_TOK ||
            mCurrentToken.type == TOKEN_TYPE::BOOL_TOK) { // FIRST(param)
         Type = mCurrentToken.lexeme;
+        SourceLoc paramLoc = mCurrentToken.loc;
         consumeToken(); // eat the type token
 
         if (mCurrentToken.type == TOKEN_TYPE::IDENT) {
             Name = mCurrentToken.getIdentifierStr();
             consumeToken(); // eat IDENT
 
-            auto param = std::make_unique<ParamAST>(Name, stringToType(Type));
+            auto param = std::make_unique<ParamAST>(paramLoc, Name, stringToType(Type));
             param_list.push_back(std::move(param));
 
             if (mCurrentToken.type == TOKEN_TYPE::COMMA) {
@@ -796,6 +777,8 @@ std::unique_ptr<DeclAST> Parser::ParseDecl() {
         mCurrentToken.type == TOKEN_TYPE::INT_TOK ||
         mCurrentToken.type == TOKEN_TYPE::FLOAT_TOK ||
         mCurrentToken.type == TOKEN_TYPE::BOOL_TOK) {
+        SourceLoc declLoc = mCurrentToken.loc;
+
         consumeToken(); // eat the VOID_TOK, INT_TOK, BOOL_TOK or FLOAT_TOK
 
         IdName = mCurrentToken.getIdentifierStr(); // save the identifier name
@@ -808,7 +791,7 @@ std::unique_ptr<DeclAST> Parser::ParseDecl() {
                 consumeToken();   // eat ;
 
                 if (typeTok.type != TOKEN_TYPE::VOID_TOK)
-                    return std::make_unique<GlobVarDeclAST>(
+                    return std::make_unique<GlobVarDeclAST>(declLoc,
                         IdName, stringToType(typeTok.lexeme));
                 else
                     mErrorReporter.panic(
@@ -831,7 +814,7 @@ std::unique_ptr<DeclAST> Parser::ParseDecl() {
 
                 consumeToken(); // eat )
 
-                auto Proto = std::make_unique<FunctionPrototypeAST>(
+                auto Proto = std::make_unique<FunctionPrototypeAST>(declLoc,
                     IdName, stringToType(typeTok.lexeme), std::move(P));
 
                 auto B = ParseBlock(); // parse the function body
@@ -841,7 +824,7 @@ std::unique_ptr<DeclAST> Parser::ParseDecl() {
                         "function body definition",
                         mCurrentToken.lexeme);
 
-                return std::make_unique<FunctionDeclAST>(std::move(Proto),
+                return std::make_unique<FunctionDeclAST>(declLoc, std::move(Proto),
                                                          std::move(B));
             } else
                 mErrorReporter.panic(mCurrentToken.loc, "';' or ('", mCurrentToken.lexeme);
@@ -904,6 +887,7 @@ std::unique_ptr<FunctionPrototypeAST> Parser::ParseExtern() {
         }
 
         IdName = mCurrentToken.getIdentifierStr(); // save the identifier name
+        SourceLoc funcLoc = mCurrentToken.loc;
         consumeToken();                            // eat the IDENT
 
         if (mCurrentToken.type != TOKEN_TYPE::LPAR)
@@ -925,7 +909,7 @@ std::unique_ptr<FunctionPrototypeAST> Parser::ParseExtern() {
         if (mCurrentToken.type == TOKEN_TYPE::SC) {
             consumeToken(); // eat ";"
 
-            auto Proto = std::make_unique<FunctionPrototypeAST>(
+            auto Proto = std::make_unique<FunctionPrototypeAST>(funcLoc,
                 IdName, stringToType(PrevTok.lexeme), std::move(P));
             return std::move(Proto);
         } else
@@ -956,42 +940,31 @@ std::vector<std::unique_ptr<FunctionPrototypeAST>> Parser::ParseExternList() {
     return externs;
 }
 
-#ifdef USE_PARSER
-// program ::= extern_list decl_list
-void parser() {
-    if (CurTok.type == EOF_TOK)
-        return;
-    ParseExternList();
-    if (CurTok.type == EOF_TOK)
-        return;
-    ParseDeclList();
-    if (CurTok.type == EOF_TOK)
-        return;
-}
-#endif
+std::unique_ptr<ProgramAST> Parser::parse() {
+    std::vector<std::unique_ptr<ASTnode>> externList;
+    std::vector<std::unique_ptr<ASTnode>> declarationList;
 
-std::vector<std::unique_ptr<ASTnode>> Parser::parse() {
-    std::vector<std::unique_ptr<ASTnode>> stmts;
+    SourceLoc programLoc = mCurrentToken.loc;
 
     if (mCurrentToken.type == TOKEN_TYPE::EOF_TOK)
-        return stmts;
+        return std::make_unique<ProgramAST>(programLoc, std::move(externList), std::move(declarationList));
 
     auto externs = ParseExternList();
     for (auto &ext : externs) {
-        stmts.push_back(std::move(ext));
+        externList.emplace_back(std::move(ext));
     }
 
-    if (mCurrentToken.type == TOKEN_TYPE::EOF_TOK)
-        return stmts;
 
+
+    if (mCurrentToken.type == TOKEN_TYPE::EOF_TOK)
+        return std::make_unique<ProgramAST>(programLoc, std::move(externList), std::move(declarationList));
     auto decls = ParseDeclList();
     for (auto &decl : decls) {
-        stmts.push_back(std::move(decl));
+        declarationList.emplace_back(std::move(decl));
     }
 
     if (mCurrentToken.type == TOKEN_TYPE::EOF_TOK)
-        return stmts;
-
+        return std::make_unique<ProgramAST>(programLoc, std::move(externList), std::move(declarationList));
     mErrorReporter.panic(mCurrentToken.loc,
                 "EOF token after parsing extern and decl lists",
                 mCurrentToken.lexeme);

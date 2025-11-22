@@ -1,21 +1,5 @@
 #include "ast.h"
 
-static std::string typeToString(TYPE type) {
-    if (type == TYPE::BOOL) {
-        return "BOOL";
-    }
-    if (type == TYPE::INT) {
-        return "INT";
-    }
-    if (type == TYPE::FLOAT) {
-        return "FLOAT";
-    }
-    if (type == TYPE::VOID) {
-        return "VOID";
-    }
-    return "UNKNOWN_TYPE";
-}
-
 static std::string operator_to_string(TOKEN_TYPE token) {
     if (token == TOKEN_TYPE::PLUS) {
         return "+";
@@ -41,6 +25,19 @@ static std::string operator_to_string(TOKEN_TYPE token) {
         return "UNKNOWN_TOKEN";
     }
 }
+
+std::string ProgramAST::to_string(int indent) const {
+    std::string result = indentString(indent) + "Program:\n";
+    result += indentString(indent + 1) + "Externs:\n";
+    for (const auto &ext : mExternList) {
+        result += ext->to_string(indent + 2) + "\n";
+    }
+    result += indentString(indent + 1) + "Declarations:\n"; 
+    for (const auto &decl : mDeclarationList) {
+        result += decl->to_string(indent + 2) + "\n";
+    }
+    return result;
+};
 
 std::string IntASTnode::to_string(int indent) const {
     return indentString(indent) + "IntLiteral: " + std::to_string(mVal);

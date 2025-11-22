@@ -41,6 +41,15 @@ class SymbolTable {
      * @return Symbol* Pointer to the symbol if found, nullptr otherwise.
      */
     Symbol *lookup(const std::string &name);
+
+    /**
+     * @brief Check if a symbol is defined in the current scope.
+     * 
+     * @param name The name of the symbol to check.
+     * @return true If the symbol is defined in the current scope.
+     * @return false If the symbol is not defined in the current scope.
+     */
+    bool isDefinedInCurrentScope(const std::string &name);
 };
 
 #endif

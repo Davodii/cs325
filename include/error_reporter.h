@@ -3,6 +3,7 @@
 
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include "source_location.h"
 
 // Base class for compiler errors
@@ -42,6 +43,16 @@ class TypeError : public CompilerError {
     expected(std::move(t1)), found(std::move(t2)) {}
 };
 
+class ConversionError : public CompilerError {
+    public:
+    std::string type1;
+    std::string type2;
+
+    ConversionError(SourceLoc loc, std::string type1, std::string type2) :
+    CompilerError(std::move(loc), "Conversion error: cannot convert type " + type1 + " to " + " type2"),
+    type1(std::move(type1)), type2(std::move(type2)) {}
+};
+
 class UndefinedVariableError : public CompilerError {
   public:
     std::string varName;
@@ -58,6 +69,12 @@ class RedefinitionError : public CompilerError {
     RedefinitionError(SourceLoc loc, std::string name) : 
     CompilerError(std::move(loc), "Redefinition of: " + name),
     name(std::move(name)) {}
+};
+
+class SemanticError : public CompilerError {
+  public:
+    SemanticError(SourceLoc loc, std::string msg) : 
+    CompilerError(std::move(loc), "Semantic error: " + msg) {}
 };
 
 // Internal compiler error
@@ -82,6 +99,14 @@ public:
 
     [[noreturn]] void redefinition(const SourceLoc &loc, const std::string &name) {
         throw RedefinitionError(loc, name);
+    }
+
+    [[noreturn]] void conversionError(const SourceLoc &loc, const std::string &type1, const std::string &type2) {
+        throw ConversionError(loc, type1, type2);
+    }
+
+    [[noreturn]] void semanticError(const SourceLoc &loc, const std::string &msg) {
+        throw SemanticError(loc, msg);
     }
 };
 

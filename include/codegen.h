@@ -25,6 +25,8 @@
 #include "ast_visitor.h"
 #include "symbol_table.h"
 
+#include "ast.h"
+
 using namespace llvm;
 using namespace llvm::sys;
 
@@ -35,13 +37,13 @@ extern llvm::IRBuilder<> Builder;
 extern std::unique_ptr<llvm::Module> TheModule;
 
 /// TODO: create the codegen visitor here
-class CodegenVisitor : ASTVisitor {
-  public:
-    CodegenVisitor();
+// class CodegenVisitor : public ASTVisitor {
+//   public:
+//     CodegenVisitor();
 
-    /// Generate LLVM IR from the AST
-    void generateCode(std::vector<std::unique_ptr<ASTnode>> &ast,
-                      SymbolTable &symbolTable);
-};
+//     /// Generate LLVM IR from the AST
+//     void generateCode(std::vector<std::unique_ptr<ASTnode>> &ast,
+//                       SymbolTable &symbolTable);
+// };
 
 #endif

@@ -1,3 +1,4 @@
+#include "ast.h"
 #include "codegen.h"
 #include "lexer.h"
 #include "parser.h"
@@ -5,7 +6,7 @@
 
 #include <cstdio>
 #include <iostream>
-#include <vector>
+#include <memory>
 
 int main(int argc, char **argv) {
     if (argc != 2) {
@@ -23,7 +24,7 @@ int main(int argc, char **argv) {
     Parser parser(lexer, errorReporter);
 
     // Run parser to build the AST
-    std::vector<std::unique_ptr<ASTnode>> ast;
+    std::unique_ptr<ProgramAST> ast;
     try {
         ast = parser.parse();
     } catch (const std::exception &e) {
@@ -33,11 +34,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Parsing finished!\n");
 
     // NOTE: For debugging, print the AST
-    for (const auto &node : ast) {
-        if (node) {
-            fprintf(stderr, "%s\n", node->to_string().c_str());
-        }
-    }
+    fprintf(stderr, "%s\n", ast->to_string().c_str());
 
     // Initialize code generation
     TheModule = std::make_unique<Module>("mini-c", TheContext);

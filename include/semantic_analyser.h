@@ -2,11 +2,12 @@
 #define MC_SEMANTIC_ANALYSER_H
 
 #include "ast.h"
+#include "ast_visitor.h"
 #include "symbol_table.h"
 #include "error_reporter.h"
 #include <memory>
 
-class SemanticAnalyser {
+class SemanticAnalyser : public ASTVisitor{
   public:
     SemanticAnalyser(ErrorReporter &errorReporter)
         : mErrorReporter(errorReporter), mSymbolTable() {
@@ -17,30 +18,40 @@ class SemanticAnalyser {
     /**
      * @brief Run the semantic analysis on the given AST.
      *
-     * @param ast A vector of unique pointers to AST nodes representing the
+     * @param program A unique pointer to the ProgramAST node representing the
      * program.
      */
-    void run(std::vector<std::unique_ptr<ASTnode>> ast);
+    void run(std::unique_ptr<ProgramAST> program);
 
   private:
     ErrorReporter &mErrorReporter;
-
     SymbolTable mSymbolTable;
-    // --- Recursive analysis methods ---
-    // Take ownership of a node and return ownership of the
-    // (potentially) new node.
 
-    // For top-level declarations and statements;
-    // void analyse(std::unique_ptr<ASTnode> &node);
+    // Functions
+    TYPE mCurrentReturnType = TYPE::VOID;
+    bool mInsideFunction = false;
 
-    // For expressions. Returns a unique_ptr because
-    // an expression can be replaced.
-    std::unique_ptr<ExprAST>
-    analyseExpression(std::unique_ptr<ExprAST> expression);
+    void visit(ProgramAST&) override;
+    void visit(IntASTnode&) override;
+    void visit(BoolASTnode&) override;
+    void visit(FloatASTnode&) override;
+    void visit(VariableASTnode&) override;
+    void visit(AssignExprAST&) override;
+    void visit(BinaryExprAST&) override;
+    void visit(UnaryExprAST&) override;
+    void visit(ArgsAST&) override;
+    void visit(CallExprAST&) override;
+    void visit(ParamAST&) override;
+    void visit(VarDeclAST&) override;
+    void visit(GlobVarDeclAST&) override;
+    void visit(BlockAST&) override;
+    void visit(FunctionPrototypeAST&) override;
+    void visit(FunctionDeclAST&) override;
+    void visit(IfExprAST&) override;
+    void visit(WhileExprAST&) override;
+    void visit(ReturnAST&) override;
 
-    // Specific helpers for different statement types
 
-    /// TODO: add more helper functions as needed
 };
 
 #endif

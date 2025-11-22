@@ -15,9 +15,9 @@ class Parser {
     /**
      * @brief Parse the entire input and return the AST.
      *
-     * @return std::vector<std::unique_ptr<ASTnode>>
+     * @return std::unique_ptr<ProgramAST>
      */
-    std::vector<std::unique_ptr<ASTnode>> parse();
+    std::unique_ptr<ProgramAST> parse();
 
     virtual ~Parser() = default;
 
