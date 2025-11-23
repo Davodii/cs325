@@ -1,6 +1,7 @@
 #ifndef MC_AST_H
 #define MC_AST_H
 
+#include "ast_visitor.h"
 #include "lexer.h"
 #include "source_location.h"
 #include "symbol.h"
@@ -9,7 +10,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "ast_visitor.h"
 
 /**
  * @brief Base class for all AST nodes.
@@ -19,7 +19,7 @@ class ASTnode {
   public:
     ASTnode(SourceLoc sourceLoc) : mSourceLoc(sourceLoc) {}
     virtual ~ASTnode() {}
-    virtual std::string to_string(int indent = 0) const;
+    virtual std::string to_string(int indent = 0) const = 0;
     virtual void accept(ASTVisitor &v) = 0;
     SourceLoc getSourceLocation() { return mSourceLoc; }
 
@@ -39,21 +39,29 @@ class DeclAST : public ASTnode {
   public:
     DeclAST(SourceLoc sourceLoc) : ASTnode(sourceLoc) {}
     virtual ~DeclAST() {}
-    virtual std::string to_string(int indent = 0) const;
+    virtual std::string to_string(int indent = 0) const = 0;
 };
 
 class ProgramAST : public ASTnode {
-    public:
-    ProgramAST(SourceLoc sourceLoc, std::vector<std::unique_ptr<ASTnode>> externList, std::vector<std::unique_ptr<ASTnode>> declaratioList) :
-    ASTnode(sourceLoc), mExternList(externList), mDeclarationList(declaratioList) {}
+  public:
+    ProgramAST(SourceLoc sourceLoc,
+               std::vector<std::unique_ptr<ASTnode>> externList,
+               std::vector<std::unique_ptr<ASTnode>> declaratioList)
+        : ASTnode(sourceLoc), mExternList(std::move(externList)),
+          mDeclarationList(std::move(declaratioList)) {}
 
     virtual ~ProgramAST() = default;
     std::string to_string(int indent = 0) const override;
     void accept(ASTVisitor &v) override { v.visit(*this); }
 
-    std::vector<std::unique_ptr<ASTnode>> getExternList() { return mExternList; }
-    std::vector<std::unique_ptr<ASTnode>> getDeclarationList() {return mDeclarationList; }
-private: 
+    std::vector<std::unique_ptr<ASTnode>> *getExternList() {
+        return &mExternList;
+    }
+    std::vector<std::unique_ptr<ASTnode>> *getDeclarationList() {
+        return &mDeclarationList;
+    }
+
+  private:
     std::vector<std::unique_ptr<ASTnode>> mExternList;
     std::vector<std::unique_ptr<ASTnode>> mDeclarationList;
 };
@@ -67,12 +75,29 @@ class ExprAST : public ASTnode {
   public:
     ExprAST(SourceLoc sourceLoc) : ASTnode(sourceLoc) {}
     virtual ~ExprAST() = default;
-    virtual std::string to_string(int indent = 0) const;
+    virtual std::string to_string(int indent = 0) const = 0;
 
     TYPE getType() const { return mInferredType; };
     void setType(TYPE type) { mInferredType = type; };
-protected:
+
+  protected:
     TYPE mInferredType;
+};
+
+class IntToFloatCastAST : public ExprAST {
+  public:
+    IntToFloatCastAST(SourceLoc sourceLoc, std::unique_ptr<ExprAST> expr)
+        : ExprAST(sourceLoc), 
+        mExpr(std::move(expr)) {
+        mInferredType = TYPE::FLOAT;
+    }
+    std::string to_string(int indent = 0) const override;
+    void accept(ASTVisitor &v) override { v.visit(*this); }
+
+    ExprAST *getExpr() { return mExpr.get(); }
+
+  private:
+    std::unique_ptr<ExprAST> mExpr;
 };
 
 /**
@@ -81,7 +106,8 @@ protected:
  */
 class IntASTnode : public ExprAST {
   public:
-    IntASTnode(SourceLoc sourceLoc, const TOKEN &tok, int val) : ExprAST(sourceLoc), mVal(val), mToken(tok) {
+    IntASTnode(SourceLoc sourceLoc, const TOKEN &tok, int val)
+        : ExprAST(sourceLoc), mVal(val), mToken(tok) {
         mInferredType = TYPE::INT;
     }
     std::string to_string(int indent = 0) const override;
@@ -98,7 +124,8 @@ class IntASTnode : public ExprAST {
  */
 class BoolASTnode : public ExprAST {
   public:
-    BoolASTnode(SourceLoc sourceLoc, const TOKEN &tok, bool B) : ExprAST(sourceLoc), mBool(B), mToken(tok) {
+    BoolASTnode(SourceLoc sourceLoc, const TOKEN &tok, bool B)
+        : ExprAST(sourceLoc), mBool(B), mToken(tok) {
         mInferredType = TYPE::BOOL;
     }
     std::string to_string(int indent = 0) const override;
@@ -115,7 +142,8 @@ class BoolASTnode : public ExprAST {
  */
 class FloatASTnode : public ExprAST {
   public:
-    FloatASTnode(SourceLoc sourceLoc, const TOKEN &tok, double val) : ExprAST(sourceLoc), mVal(val), mToken(tok) {
+    FloatASTnode(SourceLoc sourceLoc, const TOKEN &tok, double val)
+        : ExprAST(sourceLoc), mVal(val), mToken(tok) {
         mInferredType = TYPE::FLOAT;
     }
     std::string to_string(int indent = 0) const override;
@@ -134,14 +162,15 @@ class FloatASTnode : public ExprAST {
  */
 class VariableASTnode : public ExprAST {
   public:
-    VariableASTnode(SourceLoc sourceLoc, const TOKEN &tok, const std::string &name)
+    VariableASTnode(SourceLoc sourceLoc, const TOKEN &tok,
+                    const std::string &name)
         : ExprAST(sourceLoc), mToken(tok), mName(name) {}
     const std::string &getName() const { return mName; }
     std::string to_string(int indent = 0) const override;
 
     Symbol *getResolvedSymbol() const { return mpResolvedSymbol; }
     void setResolvedSymbol(Symbol *symbol) { mpResolvedSymbol = symbol; }
-    
+
     TYPE getType() const {
         assert(mpResolvedSymbol && "Symbol not resolved for variable");
         return mpResolvedSymbol->getType();
@@ -153,7 +182,6 @@ class VariableASTnode : public ExprAST {
     TOKEN mToken;
     std::string mName;
     Symbol *mpResolvedSymbol;
-
 };
 
 /**
@@ -162,16 +190,23 @@ class VariableASTnode : public ExprAST {
  */
 class AssignExprAST : public ExprAST {
   public:
-    AssignExprAST(SourceLoc sourceLoc, std::unique_ptr<VariableASTnode> variable,
+    AssignExprAST(SourceLoc sourceLoc,
+                  std::unique_ptr<VariableASTnode> variable,
                   std::unique_ptr<ExprAST> expression)
-        : ExprAST(sourceLoc), mVariable(std::move(variable)), mExpression(std::move(expression)) {}
+        : ExprAST(sourceLoc), mVariable(std::move(variable)),
+          mExpression(std::move(expression)) {}
 
     std::string to_string(int indent = 0) const override;
 
     void accept(ASTVisitor &v) override { v.visit(*this); }
 
-    VariableASTnode* getVariable() {return mVariable.get(); }
-    ExprAST* getExpression() {return mExpression.get(); }
+    VariableASTnode *getVariable() { return mVariable.get(); }
+    ExprAST *getExpression() { return mExpression.get(); }
+    std::unique_ptr<ExprAST> takeExpression() { return std::move(mExpression); }
+    void setExpression(std::unique_ptr<ExprAST> expr) {
+        mExpression = std::move(expr);
+    }
+
   private:
     std::unique_ptr<VariableASTnode> mVariable;
     std::unique_ptr<ExprAST> mExpression;
@@ -183,15 +218,21 @@ class AssignExprAST : public ExprAST {
  */
 class BinaryExprAST : public ExprAST {
   public:
-    BinaryExprAST(SourceLoc sourceLoc, std::unique_ptr<ExprAST> left, TOKEN_TYPE op,
-                  std::unique_ptr<ExprAST> right)
-        : ExprAST(sourceLoc), mLeft(std::move(left)), mOp(op), mRight(std::move(right)) {}
+    BinaryExprAST(SourceLoc sourceLoc, std::unique_ptr<ExprAST> left,
+                  TOKEN_TYPE op, std::unique_ptr<ExprAST> right)
+        : ExprAST(sourceLoc), mLeft(std::move(left)), mOp(op),
+          mRight(std::move(right)) {}
     std::string to_string(int indent = 0) const override;
-    
+
     void accept(ASTVisitor &v) override { v.visit(*this); }
 
-    ExprAST* getLHS() { return mLeft.get(); }
-    ExprAST* getRHS() { return mRight.get(); }
+    ExprAST *getLHS() { return mLeft.get(); }
+    std::unique_ptr<ExprAST> takeLHS() { return std::move(mLeft); }
+    void setLHS(std::unique_ptr<ExprAST> lhs) { mLeft = std::move(lhs); }
+    ExprAST *getRHS() { return mRight.get(); }
+    std::unique_ptr<ExprAST> takeRHS() { return std::move(mRight); }
+    void setRHS(std::unique_ptr<ExprAST> rhs) { mRight = std::move(rhs); }
+
     TOKEN_TYPE getOperator() { return mOp; }
 
   private:
@@ -205,7 +246,8 @@ class BinaryExprAST : public ExprAST {
  */
 class UnaryExprAST : public ExprAST {
   public:
-    UnaryExprAST(SourceLoc sourceLoc, TOKEN_TYPE op, std::unique_ptr<ExprAST> expression)
+    UnaryExprAST(SourceLoc sourceLoc, TOKEN_TYPE op,
+                 std::unique_ptr<ExprAST> expression)
         : ExprAST(sourceLoc), mOp(op), mExpression(std::move(expression)) {}
 
     std::string to_string(int indent = 0) const override;
@@ -213,7 +255,7 @@ class UnaryExprAST : public ExprAST {
     void accept(ASTVisitor &v) override { v.visit(*this); }
 
     TOKEN_TYPE getOperator() { return mOp; }
-    ExprAST* getExpression() { return mExpression.get(); }
+    ExprAST *getExpression() { return mExpression.get(); }
 
   private:
     TOKEN_TYPE mOp;
@@ -227,16 +269,16 @@ class UnaryExprAST : public ExprAST {
 class ArgsAST : public ExprAST {
   public:
     ArgsAST(SourceLoc sourceLoc, std::vector<std::unique_ptr<ExprAST>> args)
-        : ExprAST(sourceLoc), ArgsList(std::move(args)) {}
+        : ExprAST(sourceLoc), mArgsList(std::move(args)) {}
 
     std::string to_string(int indent = 0) const override;
 
     void accept(ASTVisitor &v) override { v.visit(*this); }
 
-    std::vector<std::unique_ptr<ExprAST>> &getArgsList() { return ArgsList; }
+    std::vector<std::unique_ptr<ExprAST>> &getArgsList() { return mArgsList; }
 
   private:
-    std::vector<std::unique_ptr<ExprAST>> ArgsList;
+    std::vector<std::unique_ptr<ExprAST>> mArgsList;
 };
 
 /**
@@ -247,12 +289,13 @@ class CallExprAST : public ExprAST {
   public:
     CallExprAST(SourceLoc sourceLoc, std::unique_ptr<VariableASTnode> callee,
                 std::unique_ptr<ArgsAST> args)
-        : ExprAST(sourceLoc), mCallee(std::move(callee)), mArgs(std::move(args)) {};
+        : ExprAST(sourceLoc), mCallee(std::move(callee)),
+          mArgs(std::move(args)) {};
     std::string to_string(int indent = 0) const override;
     void accept(ASTVisitor &v) override { v.visit(*this); }
 
-    VariableASTnode* getCallee() { return mCallee.get(); }
-    ArgsAST* getArgs() { return mArgs.get(); }
+    VariableASTnode *getCallee() { return mCallee.get(); }
+    ArgsAST *getArgs() { return mArgs.get(); }
 
   private:
     std::unique_ptr<VariableASTnode> mCallee;
@@ -265,7 +308,9 @@ class CallExprAST : public ExprAST {
  */
 class ParamAST : public ASTnode {
   public:
-    ParamAST(SourceLoc sourceLoc, const std::string &name, TYPE type) : ASTnode(sourceLoc), mName(name), mType(type) {}
+    ParamAST(SourceLoc sourceLoc, const std::string &name, TYPE type)
+        : ASTnode(sourceLoc), mName(name), mType(type) {}
+
     const std::string &getName() const { return mName; }
     std::string to_string(int indent = 0) const override;
     void accept(ASTVisitor &v) override { v.visit(*this); }
@@ -289,15 +334,15 @@ class ParamAST : public ASTnode {
  */
 class VarDeclAST : public DeclAST {
   public:
-    VarDeclAST(SourceLoc sourceLoc, const std::string &name, TYPE type) : DeclAST(sourceLoc), mName(name), mType(type) {}
+    VarDeclAST(SourceLoc sourceLoc, const std::string &name, TYPE type)
+        : DeclAST(sourceLoc), mName(name), mType(type) {}
+
     const std::string &getName() const { return mName; }
     const TYPE getType() const { return mType; }
     std::string to_string(int indent = 0) const override;
     void accept(ASTVisitor &v) override { v.visit(*this); }
 
     Symbol *symbol;
-
-
 
   private:
     std::string mName;
@@ -330,19 +375,26 @@ class GlobVarDeclAST : public DeclAST {
  */
 class BlockAST : public ASTnode {
   public:
-    BlockAST(SourceLoc sourceLoc, std::vector<std::unique_ptr<VarDeclAST>> localDecls,
-             std::vector<std::unique_ptr<ASTnode>> stmts)
-        : ASTnode(sourceLoc), mLocalDecls(std::move(localDecls)), mStmts(std::move(stmts)) {}
+    BlockAST(SourceLoc sourceLoc,
+             std::vector<std::unique_ptr<VarDeclAST>> localDecls,
+             std::vector<std::unique_ptr<ASTnode>> stmts,
+             bool isFunctionBlock = false)
+        : ASTnode(sourceLoc), mLocalDecls(std::move(localDecls)),
+          mStmts(std::move(stmts)), mIsFunctionBlock(isFunctionBlock) {}
     std::string to_string(int indent = 0) const override;
     void accept(ASTVisitor &v) override { v.visit(*this); }
 
-    std::vector<std::unique_ptr<VarDeclAST>> &getLocalDecls() { return mLocalDecls; }
+    std::vector<std::unique_ptr<VarDeclAST>> &getLocalDecls() {
+        return mLocalDecls;
+    }
     std::vector<std::unique_ptr<ASTnode>> &getStmts() { return mStmts; }
+    bool isFunctionBlock() const { return mIsFunctionBlock; }
 
   private:
     std::vector<std::unique_ptr<VarDeclAST>>
         mLocalDecls;                              // vector of local decls
     std::vector<std::unique_ptr<ASTnode>> mStmts; // vector of statements
+    bool mIsFunctionBlock;
 };
 
 /**
@@ -351,9 +403,11 @@ class BlockAST : public ASTnode {
  */
 class FunctionPrototypeAST : public ASTnode {
   public:
-    FunctionPrototypeAST(SourceLoc sourceLoc, const std::string &name, TYPE type,
+    FunctionPrototypeAST(SourceLoc sourceLoc, const std::string &name,
+                         TYPE type,
                          std::vector<std::unique_ptr<ParamAST>> params)
-        : ASTnode(sourceLoc), mName(name), mType(type), mParams(std::move(params)) {}
+        : ASTnode(sourceLoc), mName(name), mType(type),
+          mParams(std::move(params)) {}
 
     const std::string &getName() const { return mName; }
     const TYPE getType() const { return mType; }
@@ -376,14 +430,17 @@ class FunctionPrototypeAST : public ASTnode {
  */
 class FunctionDeclAST : public DeclAST {
   public:
-    FunctionDeclAST(SourceLoc sourceLoc, std::unique_ptr<FunctionPrototypeAST> mProto,
+    FunctionDeclAST(SourceLoc sourceLoc,
+                    std::unique_ptr<FunctionPrototypeAST> mProto,
                     std::unique_ptr<BlockAST> mBlock)
-        : DeclAST(sourceLoc), mProto(std::move(mProto)), mBlock(std::move(mBlock)) {}
+        : DeclAST(sourceLoc), mProto(std::move(mProto)),
+          mBlock(std::move(mBlock)) {}
+
     std::string to_string(int indent = 0) const override;
     void accept(ASTVisitor &v) override { v.visit(*this); }
 
-    FunctionPrototypeAST* getProto() { return mProto.get(); }
-    BlockAST* getBlock() { return mBlock.get(); }
+    FunctionPrototypeAST *getProto() { return mProto.get(); }
+    BlockAST *getBlock() { return mBlock.get(); }
 
   private:
     std::unique_ptr<FunctionPrototypeAST> mProto;
@@ -398,14 +455,14 @@ class IfExprAST : public ASTnode {
   public:
     IfExprAST(SourceLoc sourceLoc, std::unique_ptr<ExprAST> condition,
               std::unique_ptr<BlockAST> then, std::unique_ptr<BlockAST> _else)
-        : ASTnode(sourceLoc), mCondition(std::move(condition)), mThen(std::move(then)),
-          mElse(std::move(_else)) {}
+        : ASTnode(sourceLoc), mCondition(std::move(condition)),
+          mThen(std::move(then)), mElse(std::move(_else)) {}
     std::string to_string(int indent = 0) const override;
     void accept(ASTVisitor &v) override { v.visit(*this); }
 
-    ExprAST* getCondition() { return mCondition.get(); }
-    BlockAST* getThen() { return mThen.get(); }
-    BlockAST* getElse() { return mElse.get(); }
+    ExprAST *getCondition() { return mCondition.get(); }
+    BlockAST *getThen() { return mThen.get(); }
+    BlockAST *getElse() { return mElse.get(); }
 
   private:
     std::unique_ptr<ExprAST> mCondition;
@@ -420,12 +477,13 @@ class WhileExprAST : public ASTnode {
   public:
     WhileExprAST(SourceLoc sourceLoc, std::unique_ptr<ExprAST> condition,
                  std::unique_ptr<ASTnode> body)
-        : ASTnode(sourceLoc), mCondition(std::move(condition)), mBody(std::move(body)) {}
+        : ASTnode(sourceLoc), mCondition(std::move(condition)),
+          mBody(std::move(body)) {}
     std::string to_string(int indent = 0) const override;
     void accept(ASTVisitor &v) override { v.visit(*this); };
 
-    ExprAST* getCondition() const {return mCondition.get();}
-    ASTnode* getBody() const {return mBody.get(); }
+    ExprAST *getCondition() const { return mCondition.get(); }
+    ASTnode *getBody() const { return mBody.get(); }
 
   private:
     std::unique_ptr<ExprAST> mCondition;
@@ -443,7 +501,14 @@ class ReturnAST : public ASTnode {
     std::string to_string(int indent = 0) const override;
     void accept(ASTVisitor &v) override { v.visit(*this); }
 
-    ExprAST* getExpression() const { return mExpression.get(); }
+    ExprAST *getExpression() const { return mExpression.get(); }
+
+    std::unique_ptr<ExprAST> takeExpression() {
+        return std::move(mExpression);
+    }
+    void setExpression(std::unique_ptr<ExprAST> expr) {
+        mExpression = std::move(expr);
+    }
 
   private:
     std::unique_ptr<ExprAST> mExpression;

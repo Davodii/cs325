@@ -1,8 +1,8 @@
 #ifndef MC_LEXER_H
 #define MC_LEXER_H
 
-#include <string>
 #include "source_location.h"
+#include <string>
 
 // The lexer returns one of these for known things.
 enum class TOKEN_TYPE {

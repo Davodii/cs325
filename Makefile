@@ -1,19 +1,48 @@
 # Define C++ compiler
 CXX=clang++ -std=c++17
 
-# --- Compiler and Linker Flags ---
+# --- Build Mode ---
+MODE = debug
+# MODE = asan
+# MODE = release
 
+# --- Base compiler + linker flags ---
+
+LLVM_CPPFLAGS := $(shell llvm-config --cxxflags)
+LLVM_LDFLAGS := $(shell llvm-config --ldflags --system-libs --libs all)
+
+BASE_CPPFLAGS = -Iinclude -Wno-unused-function -Wno-unknown-warning-option -fno-rtti \
+                -fexceptions
+
+# --- Mode-specific flags ---
+ifeq ($(MODE), debug)
+	CPPFLAGS = -g -O0 $(LLVM_CPPFLAGS) $(BASE_CPPFLAGS)
+	LDFLAGS = $(LLVM_LDFLAGS)
+endif
+
+ifeq ($(MODE), asan)
+	export ASAN_OPTIONS=detect_leaks=0
+
+	CPPFLAGS = -g -O1 $(LLVM_CPPFLAGS) $(BASE_CPPFLAGS) \
+				-fsanitize=address -fsanitize-address-use-after-scope -fno-omit-frame-pointer \
+				-fsanitize-recover=address
+	LDFLAGS = -fsanitize=address $(LLVM_LDFLAGS)
+endif
+
+ifeq ($(MODE), release)
+	CPPFLAGS = -O3 $(LLVM_CPPFLAGS) $(BASE_CPPFLAGS)
+	LDFLAGS = $(LLVM_LDFLAGS)
+endif
 # Define compile flags
 # Get the C++ flags from llvm-config
-# -g  - debug symbols
 # -O3 - optimisation level
 # -c  - compile only
 # -Iinclude - look for headers in the 'include' directory
-CPPFLAGS = -g -O3 `llvm-config --cppflags` -Iinclude \
-		   -Wno-unused-function -Wno-unknown-warning-option -fno-rtti
+# CPPFLAGS = `llvm-config --cppflags` -Iinclude \
+# 		   -Wno-unused-function -Wno-unknown-warning-option -fno-rtti
 
 # Define linker flags
-LDFLAGS = `llvm-config --ldflags --system-libs --libs all`
+# LDFLAGS = -fsanitize=address `llvm-config --ldflags --system-libs --libs all`
 
 # --- Project Files ---
 

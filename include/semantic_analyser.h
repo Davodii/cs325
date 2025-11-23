@@ -3,11 +3,11 @@
 
 #include "ast.h"
 #include "ast_visitor.h"
-#include "symbol_table.h"
 #include "error_reporter.h"
+#include "symbol_table.h"
 #include <memory>
 
-class SemanticAnalyser : public ASTVisitor{
+class SemanticAnalyser : public ASTVisitor {
   public:
     SemanticAnalyser(ErrorReporter &errorReporter)
         : mErrorReporter(errorReporter), mSymbolTable() {
@@ -21,7 +21,7 @@ class SemanticAnalyser : public ASTVisitor{
      * @param program A unique pointer to the ProgramAST node representing the
      * program.
      */
-    void run(std::unique_ptr<ProgramAST> program);
+    std::unique_ptr<ProgramAST> run(std::unique_ptr<ProgramAST> program);
 
   private:
     ErrorReporter &mErrorReporter;
@@ -31,27 +31,26 @@ class SemanticAnalyser : public ASTVisitor{
     TYPE mCurrentReturnType = TYPE::VOID;
     bool mInsideFunction = false;
 
-    void visit(ProgramAST&) override;
-    void visit(IntASTnode&) override;
-    void visit(BoolASTnode&) override;
-    void visit(FloatASTnode&) override;
-    void visit(VariableASTnode&) override;
-    void visit(AssignExprAST&) override;
-    void visit(BinaryExprAST&) override;
-    void visit(UnaryExprAST&) override;
-    void visit(ArgsAST&) override;
-    void visit(CallExprAST&) override;
-    void visit(ParamAST&) override;
-    void visit(VarDeclAST&) override;
-    void visit(GlobVarDeclAST&) override;
-    void visit(BlockAST&) override;
-    void visit(FunctionPrototypeAST&) override;
-    void visit(FunctionDeclAST&) override;
-    void visit(IfExprAST&) override;
-    void visit(WhileExprAST&) override;
-    void visit(ReturnAST&) override;
-
-
+    void visit(ProgramAST &) override;
+    void visit(IntToFloatCastAST &) override;
+    void visit(IntASTnode &) override;
+    void visit(BoolASTnode &) override;
+    void visit(FloatASTnode &) override;
+    void visit(VariableASTnode &) override;
+    void visit(AssignExprAST &) override;
+    void visit(BinaryExprAST &) override;
+    void visit(UnaryExprAST &) override;
+    void visit(ArgsAST &) override;
+    void visit(CallExprAST &) override;
+    void visit(ParamAST &) override;
+    void visit(VarDeclAST &) override;
+    void visit(GlobVarDeclAST &) override;
+    void visit(BlockAST &) override;
+    void visit(FunctionPrototypeAST &) override;
+    void visit(FunctionDeclAST &) override;
+    void visit(IfExprAST &) override;
+    void visit(WhileExprAST &) override;
+    void visit(ReturnAST &) override;
 };
 
 #endif

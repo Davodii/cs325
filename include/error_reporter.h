@@ -1,10 +1,10 @@
 #ifndef ERROR_REPORTED_H
 #define ERROR_REPORTED_H
 
+#include "source_location.h"
 #include <stdexcept>
 #include <string>
 #include <utility>
-#include "source_location.h"
 
 // Base class for compiler errors
 class CompilerError : public std::exception {
@@ -12,10 +12,14 @@ class CompilerError : public std::exception {
     SourceLoc location;
     std::string message;
 
-    CompilerError(SourceLoc loc, std::string msg) : location(std::move(loc)), message(std::move(msg)) {}
+    CompilerError(SourceLoc loc, std::string msg)
+        : location(std::move(loc)), message(std::move(msg)) {}
 
-    const char *what() const noexcept override { 
-        return message.c_str(); 
+    mutable std::string fullMessageCache;
+    const char *what() const noexcept override {
+        fullMessageCache = std::to_string(location.line) + ":" +
+                           std::to_string(location.column) + " :" + message;
+        return fullMessageCache.c_str();
     }
 
     virtual ~CompilerError() = default;
@@ -27,9 +31,10 @@ class SyntaxError : public CompilerError {
     std::string expected;
     std::string found;
 
-    SyntaxError(SourceLoc loc, std::string expected, std::string found) : 
-    CompilerError(std::move(loc), "Syntax error: Expected " + expected + ", but found " + found),
-    expected(std::move(expected)), found(std::move(found)) {}
+    SyntaxError(SourceLoc loc, std::string expected, std::string found)
+        : CompilerError(std::move(loc), "Syntax error: Expected " + expected +
+                                            ", but found " + found),
+          expected(std::move(expected)), found(std::move(found)) {}
 };
 
 // Semantic error
@@ -38,74 +43,86 @@ class TypeError : public CompilerError {
     std::string expected;
     std::string found;
 
-    TypeError(SourceLoc loc, std::string t1, std::string t2) : 
-    CompilerError(std::move(loc), "Type error: expected type " + t1 + ", but found type " + t2),
-    expected(std::move(t1)), found(std::move(t2)) {}
+    TypeError(SourceLoc loc, std::string t1, std::string t2)
+        : CompilerError(std::move(loc), "Type error: expected type " + t1 +
+                                            ", but found type " + t2),
+          expected(std::move(t1)), found(std::move(t2)) {}
 };
 
 class ConversionError : public CompilerError {
-    public:
+  public:
     std::string type1;
     std::string type2;
 
-    ConversionError(SourceLoc loc, std::string type1, std::string type2) :
-    CompilerError(std::move(loc), "Conversion error: cannot convert type " + type1 + " to " + " type2"),
-    type1(std::move(type1)), type2(std::move(type2)) {}
+    ConversionError(SourceLoc loc, std::string type1, std::string type2)
+        : CompilerError(std::move(loc),
+                        "Conversion error: cannot convert type " + type1 +
+                            " to type " + type2),
+          type1(std::move(type1)), type2(std::move(type2)) {}
 };
 
 class UndefinedVariableError : public CompilerError {
   public:
     std::string varName;
 
-    UndefinedVariableError(SourceLoc loc, std::string name) : 
-    CompilerError(std::move(loc), "Undefined variable: " + name),
-    varName(std::move(name)) {}
+    UndefinedVariableError(SourceLoc loc, std::string name)
+        : CompilerError(std::move(loc), "Undefined variable: " + name),
+          varName(std::move(name)) {}
 };
 
 class RedefinitionError : public CompilerError {
   public:
     std::string name;
 
-    RedefinitionError(SourceLoc loc, std::string name) : 
-    CompilerError(std::move(loc), "Redefinition of: " + name),
-    name(std::move(name)) {}
+    RedefinitionError(SourceLoc loc, std::string name)
+        : CompilerError(std::move(loc), "Redefinition of: " + name),
+          name(std::move(name)) {}
 };
 
 class SemanticError : public CompilerError {
   public:
-    SemanticError(SourceLoc loc, std::string msg) : 
-    CompilerError(std::move(loc), "Semantic error: " + msg) {}
+    SemanticError(SourceLoc loc, std::string msg)
+        : CompilerError(std::move(loc), "Semantic error: " + msg) {}
 };
 
 // Internal compiler error
 class InternalCompilerError : public std::runtime_error {
-public:
-    InternalCompilerError(const std::string &msg) : std::runtime_error("Internal compiler error: " + msg) {}
+  public:
+    InternalCompilerError(const std::string &msg)
+        : std::runtime_error("Internal compiler error: " + msg) {}
 };
 
 class ErrorReporter {
-public:
-    [[noreturn]] void panic(const SourceLoc &loc, const std::string &expected, const std::string &found) {
+  public:
+    [[noreturn]] void panic(const SourceLoc &loc, const std::string &expected,
+                            const std::string &found) {
         throw SyntaxError(loc, expected, found);
     }
 
-    [[noreturn]] void typeError(const SourceLoc &loc, const std::string &expected, const std::string &found) {
+    [[noreturn]] void typeError(const SourceLoc &loc,
+                                const std::string &expected,
+                                const std::string &found) {
         throw TypeError(loc, expected, found);
     }
 
-    [[noreturn]] void undefinedVariable(const SourceLoc &loc, const std::string &varName) {
+    [[noreturn]] void undefinedVariable(const SourceLoc &loc,
+                                        const std::string &varName) {
         throw UndefinedVariableError(loc, varName);
     }
 
-    [[noreturn]] void redefinition(const SourceLoc &loc, const std::string &name) {
+    [[noreturn]] void redefinition(const SourceLoc &loc,
+                                   const std::string &name) {
         throw RedefinitionError(loc, name);
     }
 
-    [[noreturn]] void conversionError(const SourceLoc &loc, const std::string &type1, const std::string &type2) {
+    [[noreturn]] void conversionError(const SourceLoc &loc,
+                                      const std::string &type1,
+                                      const std::string &type2) {
         throw ConversionError(loc, type1, type2);
     }
 
-    [[noreturn]] void semanticError(const SourceLoc &loc, const std::string &msg) {
+    [[noreturn]] void semanticError(const SourceLoc &loc,
+                                    const std::string &msg) {
         throw SemanticError(loc, msg);
     }
 };

@@ -2,12 +2,13 @@
 #define MC_PARSER_H
 
 #include "ast.h"
-#include "lexer.h"
 #include "error_reporter.h"
+#include "lexer.h"
 
 class Parser {
   public:
-    Parser(Lexer &lexer, ErrorReporter &errorReporter) : mLexer(lexer), mErrorReporter(errorReporter) {
+    Parser(Lexer &lexer, ErrorReporter &errorReporter)
+        : mLexer(lexer), mErrorReporter(errorReporter) {
         // Prime the pump by getting the first token
         consumeToken();
     }
@@ -33,9 +34,9 @@ class Parser {
 
     /**
      * @brief Convert a string to its equivalent TYPE enum.
-     * 
-     * @param s 
-     * @return TYPE 
+     *
+     * @param s
+     * @return TYPE
      */
     TYPE stringToType(const std::string &s) const;
 
@@ -302,7 +303,7 @@ class Parser {
      *
      * @return std::unique_ptr<BlockAST>
      */
-    std::unique_ptr<BlockAST> ParseBlock();
+    std::unique_ptr<BlockAST> ParseBlock(bool isFunctionBody = false);
 
     /**
      * @brief Parse an if statement.

@@ -17,26 +17,27 @@ TYPE Parser::stringToType(const std::string &s) const {
     } else if (s == "void") {
         return TYPE::VOID;
     }
-    mErrorReporter.panic(mCurrentToken.loc, "one of: 'int', 'float', 'bool', or 'void'", s);
+    mErrorReporter.panic(mCurrentToken.loc,
+                         "one of: 'int', 'float', 'bool', or 'void'", s);
 }
 
 std::unique_ptr<FloatASTnode> Parser::ParseFloatNumberExpr() {
-    auto Result = std::make_unique<FloatASTnode>(mCurrentToken.loc, mCurrentToken,
-                                                 mCurrentToken.getFloatVal());
+    auto Result = std::make_unique<FloatASTnode>(
+        mCurrentToken.loc, mCurrentToken, mCurrentToken.getFloatVal());
     consumeToken(); // consume the number
     return std::move(Result);
 }
 
 std::unique_ptr<IntASTnode> Parser::ParseIntNumberExpr() {
-    auto Result =
-        std::make_unique<IntASTnode>(mCurrentToken.loc, mCurrentToken, mCurrentToken.getIntVal());
+    auto Result = std::make_unique<IntASTnode>(mCurrentToken.loc, mCurrentToken,
+                                               mCurrentToken.getIntVal());
     consumeToken(); // consume the number
     return std::move(Result);
 }
 
 std::unique_ptr<BoolASTnode> Parser::ParseBoolExpr() {
-    auto Result = std::make_unique<BoolASTnode>(mCurrentToken.loc, mCurrentToken,
-                                                mCurrentToken.getBoolVal());
+    auto Result = std::make_unique<BoolASTnode>(
+        mCurrentToken.loc, mCurrentToken, mCurrentToken.getBoolVal());
     consumeToken(); // consume the number
     return std::move(Result);
 }
@@ -54,8 +55,8 @@ std::vector<std::unique_ptr<ExprAST>> Parser::ParseArgs() {
         auto Expression = ParseExper();
         if (!Expression)
             mErrorReporter.panic(mCurrentToken.loc,
-                                "expected expression in function arguments",
-                                mCurrentToken.lexeme);
+                                 "expected expression in function arguments",
+                                 mCurrentToken.lexeme);
         Args.push_back(std::move(Expression));
 
         if (mCurrentToken.type == TOKEN_TYPE::COMMA) {
@@ -64,8 +65,8 @@ std::vector<std::unique_ptr<ExprAST>> Parser::ParseArgs() {
             break;
         } else {
             mErrorReporter.panic(mCurrentToken.loc,
-                        "',' or ')' in function arguments",
-                        mCurrentToken.lexeme);
+                                 "',' or ')' in function arguments",
+                                 mCurrentToken.lexeme);
         }
     }
 
@@ -81,10 +82,12 @@ Parser::ParsePrimaryTail(std::unique_ptr<VariableASTnode> Callee) {
         SourceLoc argsLoc = mCurrentToken.loc;
         auto Args = ParseArgs();
         if (mCurrentToken.type != TOKEN_TYPE::RPAR)
-            mErrorReporter.panic(mCurrentToken.loc, "')' after function arguments", mCurrentToken.lexeme);
+            mErrorReporter.panic(mCurrentToken.loc,
+                                 "')' after function arguments",
+                                 mCurrentToken.lexeme);
         consumeToken(); // eat ')'
-        return std::make_unique<CallExprAST>(callLoc,
-            std::move(Callee), 
+        return std::make_unique<CallExprAST>(
+            callLoc, std::move(Callee),
             std::make_unique<ArgsAST>(argsLoc, std::move(Args)));
     } else {
         // variable reference
@@ -96,8 +99,8 @@ std::unique_ptr<ExprAST> Parser::ParsePrimary() {
     if (mCurrentToken.type == TOKEN_TYPE::IDENT) {
         SourceLoc primaryLoc = mCurrentToken.loc;
         std::string idName = mCurrentToken.getIdentifierStr();
-        auto Variable =
-            std::make_unique<VariableASTnode>(primaryLoc, mCurrentToken, idName);
+        auto Variable = std::make_unique<VariableASTnode>(
+            primaryLoc, mCurrentToken, idName);
         consumeToken(); // eat IDENT
         return ParsePrimaryTail(std::move(Variable));
     } else if (mCurrentToken.type == TOKEN_TYPE::INT_LIT) {
@@ -110,13 +113,18 @@ std::unique_ptr<ExprAST> Parser::ParsePrimary() {
         consumeToken(); // eat '('
         auto Expression = ParseExper();
         if (!Expression)
-            mErrorReporter.panic(mCurrentToken.loc, "expression after '('", mCurrentToken.lexeme);
+            mErrorReporter.panic(mCurrentToken.loc, "expression after '('",
+                                 mCurrentToken.lexeme);
         if (mCurrentToken.type != TOKEN_TYPE::RPAR)
-            mErrorReporter.panic(mCurrentToken.loc, "')' after expression", mCurrentToken.lexeme);
+            mErrorReporter.panic(mCurrentToken.loc, "')' after expression",
+                                 mCurrentToken.lexeme);
         consumeToken(); // eat ')'
         return Expression;
     } else {
-        mErrorReporter.panic(mCurrentToken.loc, "primary expression (identifier, literal, or '(' expression ')')", mCurrentToken.lexeme);
+        mErrorReporter.panic(
+            mCurrentToken.loc,
+            "primary expression (identifier, literal, or '(' expression ')')",
+            mCurrentToken.lexeme);
     }
 }
 
@@ -129,8 +137,8 @@ std::unique_ptr<ExprAST> Parser::ParseUnary() {
         auto Expression = ParseUnary();
         if (!Expression)
             mErrorReporter.panic(mCurrentToken.loc,
-                        "expression after unary '-' or '!' operator",
-                        mCurrentToken.lexeme);
+                                 "expression after unary '-' or '!' operator",
+                                 mCurrentToken.lexeme);
         return std::make_unique<UnaryExprAST>(opLoc, Op, std::move(Expression));
     } else {
         return ParsePrimary();
@@ -140,7 +148,8 @@ std::unique_ptr<ExprAST> Parser::ParseUnary() {
 std::unique_ptr<ExprAST> Parser::ParseMultiplicative() {
     auto LHS = ParseUnary();
     if (!LHS)
-        mErrorReporter.panic(mCurrentToken.loc, "expression", mCurrentToken.lexeme);
+        mErrorReporter.panic(mCurrentToken.loc, "expression",
+                             mCurrentToken.lexeme);
 
     while (mCurrentToken.type == TOKEN_TYPE::ASTERIX ||
            mCurrentToken.type == TOKEN_TYPE::DIV ||
@@ -151,10 +160,10 @@ std::unique_ptr<ExprAST> Parser::ParseMultiplicative() {
         auto RHS = ParseUnary();
         if (!RHS)
             mErrorReporter.panic(mCurrentToken.loc,
-                        "expression after '*', '/', or '%' operator",
-                        mCurrentToken.lexeme);
-        LHS =
-            std::make_unique<BinaryExprAST>(opLoc, std::move(LHS), Op, std::move(RHS));
+                                 "expression after '*', '/', or '%' operator",
+                                 mCurrentToken.lexeme);
+        LHS = std::make_unique<BinaryExprAST>(opLoc, std::move(LHS), Op,
+                                              std::move(RHS));
     }
 
     return LHS;
@@ -163,7 +172,8 @@ std::unique_ptr<ExprAST> Parser::ParseMultiplicative() {
 std::unique_ptr<ExprAST> Parser::ParseAdditive() {
     auto LHS = ParseMultiplicative();
     if (!LHS)
-        mErrorReporter.panic(mCurrentToken.loc, "expression", mCurrentToken.lexeme);
+        mErrorReporter.panic(mCurrentToken.loc, "expression",
+                             mCurrentToken.lexeme);
 
     while (mCurrentToken.type == TOKEN_TYPE::PLUS ||
            mCurrentToken.type == TOKEN_TYPE::MINUS) {
@@ -173,10 +183,10 @@ std::unique_ptr<ExprAST> Parser::ParseAdditive() {
         auto RHS = ParseMultiplicative();
         if (!RHS)
             mErrorReporter.panic(mCurrentToken.loc,
-                        "expression after '+' or '-' operator",
-                        mCurrentToken.lexeme);
-        LHS =
-            std::make_unique<BinaryExprAST>(opLoc, std::move(LHS), Op, std::move(RHS));
+                                 "expression after '+' or '-' operator",
+                                 mCurrentToken.lexeme);
+        LHS = std::make_unique<BinaryExprAST>(opLoc, std::move(LHS), Op,
+                                              std::move(RHS));
     }
 
     return LHS;
@@ -185,7 +195,8 @@ std::unique_ptr<ExprAST> Parser::ParseAdditive() {
 std::unique_ptr<ExprAST> Parser::ParseRelational() {
     auto LHS = ParseAdditive();
     if (!LHS)
-        mErrorReporter.panic(mCurrentToken.loc, "expression", mCurrentToken.lexeme);
+        mErrorReporter.panic(mCurrentToken.loc, "expression",
+                             mCurrentToken.lexeme);
 
     while (mCurrentToken.type == TOKEN_TYPE::LT ||
            mCurrentToken.type == TOKEN_TYPE::GT ||
@@ -197,10 +208,10 @@ std::unique_ptr<ExprAST> Parser::ParseRelational() {
         auto RHS = ParseAdditive();
         if (!RHS)
             mErrorReporter.panic(mCurrentToken.loc,
-                        "expression after relational operator",
-                        mCurrentToken.lexeme);
-        LHS =
-            std::make_unique<BinaryExprAST>(opLoc, std::move(LHS), Op, std::move(RHS));
+                                 "expression after relational operator",
+                                 mCurrentToken.lexeme);
+        LHS = std::make_unique<BinaryExprAST>(opLoc, std::move(LHS), Op,
+                                              std::move(RHS));
     }
 
     return LHS;
@@ -209,7 +220,8 @@ std::unique_ptr<ExprAST> Parser::ParseRelational() {
 std::unique_ptr<ExprAST> Parser::ParseEquality() {
     auto LHS = ParseRelational();
     if (!LHS)
-        mErrorReporter.panic(mCurrentToken.loc, "expression", mCurrentToken.lexeme);
+        mErrorReporter.panic(mCurrentToken.loc, "expression",
+                             mCurrentToken.lexeme);
 
     while (mCurrentToken.type == TOKEN_TYPE::EQ ||
            mCurrentToken.type == TOKEN_TYPE::NE) {
@@ -219,10 +231,10 @@ std::unique_ptr<ExprAST> Parser::ParseEquality() {
         auto RHS = ParseRelational();
         if (!RHS)
             mErrorReporter.panic(mCurrentToken.loc,
-                        "expression after '==' or '!=' operator",
-                        mCurrentToken.lexeme);
-        LHS =
-            std::make_unique<BinaryExprAST>(opLoc, std::move(LHS), Op, std::move(RHS));
+                                 "expression after '==' or '!=' operator",
+                                 mCurrentToken.lexeme);
+        LHS = std::make_unique<BinaryExprAST>(opLoc, std::move(LHS), Op,
+                                              std::move(RHS));
     }
 
     return LHS;
@@ -231,7 +243,8 @@ std::unique_ptr<ExprAST> Parser::ParseEquality() {
 std::unique_ptr<ExprAST> Parser::ParseLogicalAnd() {
     auto LHS = ParseEquality();
     if (!LHS)
-        mErrorReporter.panic(mCurrentToken.loc, "expression", mCurrentToken.lexeme);
+        mErrorReporter.panic(mCurrentToken.loc, "expression",
+                             mCurrentToken.lexeme);
 
     while (mCurrentToken.type == TOKEN_TYPE::AND) {
         TOKEN_TYPE Op = mCurrentToken.type;
@@ -240,10 +253,10 @@ std::unique_ptr<ExprAST> Parser::ParseLogicalAnd() {
         auto RHS = ParseEquality();
         if (!RHS)
             mErrorReporter.panic(mCurrentToken.loc,
-                        "expression after '&&' operator",
-                        mCurrentToken.lexeme);
-        LHS =
-            std::make_unique<BinaryExprAST>(opLoc, std::move(LHS), Op, std::move(RHS));
+                                 "expression after '&&' operator",
+                                 mCurrentToken.lexeme);
+        LHS = std::make_unique<BinaryExprAST>(opLoc, std::move(LHS), Op,
+                                              std::move(RHS));
     }
 
     return LHS;
@@ -252,7 +265,8 @@ std::unique_ptr<ExprAST> Parser::ParseLogicalAnd() {
 std::unique_ptr<ExprAST> Parser::ParseLogicalOr() {
     auto LHS = ParseLogicalAnd();
     if (!LHS)
-        mErrorReporter.panic(mCurrentToken.loc, "expression", mCurrentToken.lexeme);
+        mErrorReporter.panic(mCurrentToken.loc, "expression",
+                             mCurrentToken.lexeme);
 
     while (mCurrentToken.type == TOKEN_TYPE::OR) {
         TOKEN_TYPE Op = mCurrentToken.type;
@@ -262,11 +276,11 @@ std::unique_ptr<ExprAST> Parser::ParseLogicalOr() {
         auto RHS = ParseLogicalAnd();
         if (!RHS)
             mErrorReporter.panic(mCurrentToken.loc,
-                        "expression after '||' operator",
-                        mCurrentToken.lexeme);
+                                 "expression after '||' operator",
+                                 mCurrentToken.lexeme);
 
-        LHS =
-            std::make_unique<BinaryExprAST>(opLoc, std::move(LHS), Op, std::move(RHS));
+        LHS = std::make_unique<BinaryExprAST>(opLoc, std::move(LHS), Op,
+                                              std::move(RHS));
     }
 
     return LHS;
@@ -286,11 +300,12 @@ std::unique_ptr<ExprAST> Parser::ParseExper() {
 
             auto rhs = ParseExper();
             if (!rhs)
-                mErrorReporter.panic(idToken.loc,
-                    "expression on right-hand side of assignment",
+                mErrorReporter.panic(
+                    idToken.loc, "expression on right-hand side of assignment",
                     idToken.lexeme);
 
-            return std::make_unique<AssignExprAST>(primaryLoc,
+            return std::make_unique<AssignExprAST>(
+                primaryLoc,
                 std::make_unique<VariableASTnode>(primaryLoc, idToken, idName),
                 std::move(rhs));
         }
@@ -313,8 +328,8 @@ std::unique_ptr<ExprAST> Parser::ParseExperStmt() {
                 return expr;
             } else {
                 mErrorReporter.panic(mCurrentToken.loc,
-                            "';' to end expression statement",
-                            mCurrentToken.lexeme);
+                                     "';' to end expression statement",
+                                     mCurrentToken.lexeme);
             }
         } else
             return nullptr;
@@ -329,7 +344,8 @@ std::unique_ptr<BlockAST> Parser::ParseElseStmt() {
         consumeToken(); // eat "else"
 
         if (!(mCurrentToken.type == TOKEN_TYPE::LBRA)) {
-            mErrorReporter.panic(mCurrentToken.loc,
+            mErrorReporter.panic(
+                mCurrentToken.loc,
                 "'{' to start else block of if-then-else statment",
                 mCurrentToken.lexeme);
         }
@@ -357,7 +373,7 @@ std::unique_ptr<BlockAST> Parser::ParseElseStmt() {
         return nullptr;
     } else
         mErrorReporter.panic(mCurrentToken.loc, "'else' or nothing",
-    mCurrentToken.lexeme);
+                             mCurrentToken.lexeme);
 
     return nullptr;
 }
@@ -365,8 +381,8 @@ std::unique_ptr<BlockAST> Parser::ParseElseStmt() {
 std::unique_ptr<IfExprAST> Parser::ParseIfStmt() {
     if (mCurrentToken.type != TOKEN_TYPE::IF) {
         mErrorReporter.panic(mCurrentToken.loc,
-                    "'if' in if statement declaration",
-                    mCurrentToken.lexeme);
+                             "'if' in if statement declaration",
+                             mCurrentToken.lexeme);
     }
 
     SourceLoc ifLoc = mCurrentToken.loc;
@@ -379,13 +395,14 @@ std::unique_ptr<IfExprAST> Parser::ParseIfStmt() {
         if (!Cond)
             return nullptr;
         if (mCurrentToken.type != TOKEN_TYPE::RPAR)
-            mErrorReporter.panic(mCurrentToken.loc, "')'", mCurrentToken.lexeme);
+            mErrorReporter.panic(mCurrentToken.loc, "')'",
+                                 mCurrentToken.lexeme);
         consumeToken(); // eat )
 
         if (!(mCurrentToken.type == TOKEN_TYPE::LBRA)) {
             mErrorReporter.panic(mCurrentToken.loc,
-                        "'{' to start then block of if statment",
-                        mCurrentToken.lexeme);
+                                 "'{' to start then block of if statment",
+                                 mCurrentToken.lexeme);
         }
 
         auto Then = ParseBlock();
@@ -393,8 +410,8 @@ std::unique_ptr<IfExprAST> Parser::ParseIfStmt() {
             return nullptr;
         auto Else = ParseElseStmt();
 
-        return std::make_unique<IfExprAST>(ifLoc, std::move(Cond), std::move(Then),
-                                           std::move(Else));
+        return std::make_unique<IfExprAST>(ifLoc, std::move(Cond),
+                                           std::move(Then), std::move(Else));
 
     } else
         mErrorReporter.panic(mCurrentToken.loc, "'('", mCurrentToken.lexeme);
@@ -405,8 +422,8 @@ std::unique_ptr<IfExprAST> Parser::ParseIfStmt() {
 std::unique_ptr<ReturnAST> Parser::ParseReturnStmt() {
     if (mCurrentToken.type != TOKEN_TYPE::RETURN) {
         mErrorReporter.panic(mCurrentToken.loc,
-                    "'return' in return statement declaration",
-                    mCurrentToken.lexeme);
+                             "'return' in return statement declaration",
+                             mCurrentToken.lexeme);
     }
 
     SourceLoc returnLoc = mCurrentToken.loc;
@@ -432,9 +449,11 @@ std::unique_ptr<ReturnAST> Parser::ParseReturnStmt() {
             consumeToken(); // eat the ;
             return std::make_unique<ReturnAST>(returnLoc, std::move(val));
         } else
-            mErrorReporter.panic(mCurrentToken.loc, "';'", mCurrentToken.lexeme);
+            mErrorReporter.panic(mCurrentToken.loc, "';'",
+                                 mCurrentToken.lexeme);
     } else
-        mErrorReporter.panic(mCurrentToken.loc, "';' or expression", mCurrentToken.lexeme);
+        mErrorReporter.panic(mCurrentToken.loc, "';' or expression",
+                             mCurrentToken.lexeme);
 
     return nullptr;
 }
@@ -442,8 +461,8 @@ std::unique_ptr<ReturnAST> Parser::ParseReturnStmt() {
 std::unique_ptr<WhileExprAST> Parser::ParseWhileStmt() {
     if (mCurrentToken.type != TOKEN_TYPE::WHILE) {
         mErrorReporter.panic(mCurrentToken.loc,
-                    "'while' in while statement declaration",
-                    mCurrentToken.lexeme);
+                             "'while' in while statement declaration",
+                             mCurrentToken.lexeme);
     }
 
     SourceLoc whileLoc = mCurrentToken.loc;
@@ -459,8 +478,8 @@ std::unique_ptr<WhileExprAST> Parser::ParseWhileStmt() {
     auto Cond = ParseExper();
     if (!Cond)
         mErrorReporter.panic(mCurrentToken.loc,
-                    "expected expression in while statement condition",
-                    mCurrentToken.lexeme);
+                             "expected expression in while statement condition",
+                             mCurrentToken.lexeme);
 
     if (mCurrentToken.type != TOKEN_TYPE::RPAR)
         mErrorReporter.panic(mCurrentToken.loc, "')'", mCurrentToken.lexeme);
@@ -468,7 +487,8 @@ std::unique_ptr<WhileExprAST> Parser::ParseWhileStmt() {
 
     auto Body = ParseStmt();
 
-    return std::make_unique<WhileExprAST>(whileLoc, std::move(Cond), std::move(Body));
+    return std::make_unique<WhileExprAST>(whileLoc, std::move(Cond),
+                                          std::move(Body));
 }
 
 std::unique_ptr<ASTnode> Parser::ParseStmt() {
@@ -512,10 +532,10 @@ std::unique_ptr<ASTnode> Parser::ParseStmt() {
     //}
     else { // syntax error
         mErrorReporter.panic(mCurrentToken.loc,
-                    "'!', '-', '+', '(' , IDENT , INT_LIT, BOOL_LIT, \
+                             "'!', '-', '+', '(' , IDENT , INT_LIT, BOOL_LIT, \
                     FLOAT_LIT, ';', '{', 'while', 'if', 'else', 'return' to \
                     start a statement\n",
-                    mCurrentToken.lexeme);
+                             mCurrentToken.lexeme);
     }
     return nullptr;
 }
@@ -624,19 +644,20 @@ std::unique_ptr<VarDeclAST> Parser::ParseLocalDecl() {
         if (mCurrentToken.type == TOKEN_TYPE::IDENT) {
             Type = PrevTok.lexeme;
             Name = mCurrentToken.getIdentifierStr(); // save the identifier name
-            local_decl = std::make_unique<VarDeclAST>(varDeclLoc, Name, stringToType(Type));
+            local_decl = std::make_unique<VarDeclAST>(varDeclLoc, Name,
+                                                      stringToType(Type));
 
             consumeToken(); // eat 'IDENT'
             if (mCurrentToken.type != TOKEN_TYPE::SC) {
                 mErrorReporter.panic(mCurrentToken.loc,
-                            "';' to end local variable declaration",
-                            mCurrentToken.lexeme);
+                                     "';' to end local variable declaration",
+                                     mCurrentToken.lexeme);
             }
             consumeToken(); // eat ';'
         } else {
             mErrorReporter.panic(mCurrentToken.loc,
-                        "identifier' in local variable declaration",
-                        mCurrentToken.lexeme);
+                                 "identifier' in local variable declaration",
+                                 mCurrentToken.lexeme);
         }
     }
     return local_decl;
@@ -683,15 +704,15 @@ std::vector<std::unique_ptr<VarDeclAST>> Parser::ParseLocalDeclList() {
     return local_decls;
 }
 
-std::unique_ptr<BlockAST> Parser::ParseBlock() {
+std::unique_ptr<BlockAST> Parser::ParseBlock(bool isFunctionBody) {
     std::vector<std::unique_ptr<VarDeclAST>>
         local_decls;                                 // vector of local decls
     std::vector<std::unique_ptr<ASTnode>> stmt_list; // vector of statements
 
     if (mCurrentToken.type != TOKEN_TYPE::LBRA) {
         mErrorReporter.panic(mCurrentToken.loc,
-                    "'{' , start body of block statement",
-                    mCurrentToken.lexeme);
+                             "'{' , start body of block statement",
+                             mCurrentToken.lexeme);
     }
 
     SourceLoc blockLoc = mCurrentToken.loc;
@@ -703,13 +724,12 @@ std::unique_ptr<BlockAST> Parser::ParseBlock() {
     if (mCurrentToken.type == TOKEN_TYPE::RBRA)
         consumeToken(); // eat '}'
     else {              // syntax error
-        mErrorReporter.panic(mCurrentToken.loc,
-                    "'}' to end block statement",
-                    mCurrentToken.lexeme);
+        mErrorReporter.panic(mCurrentToken.loc, "'}' to end block statement",
+                             mCurrentToken.lexeme);
     }
 
     return std::make_unique<BlockAST>(blockLoc, std::move(local_decls),
-                                      std::move(stmt_list));
+                                      std::move(stmt_list), isFunctionBody);
 }
 
 std::vector<std::unique_ptr<ParamAST>> Parser::ParseParamList() {
@@ -732,7 +752,8 @@ std::vector<std::unique_ptr<ParamAST>> Parser::ParseParamList() {
             Name = mCurrentToken.getIdentifierStr();
             consumeToken(); // eat IDENT
 
-            auto param = std::make_unique<ParamAST>(paramLoc, Name, stringToType(Type));
+            auto param =
+                std::make_unique<ParamAST>(paramLoc, Name, stringToType(Type));
             param_list.push_back(std::move(param));
 
             if (mCurrentToken.type == TOKEN_TYPE::COMMA) {
@@ -742,27 +763,29 @@ std::vector<std::unique_ptr<ParamAST>> Parser::ParseParamList() {
                 break;
             } else {
                 mErrorReporter.panic(mCurrentToken.loc,
-                            "',' or ')' in function declaration",
-                            mCurrentToken.lexeme);
+                                     "',' or ')' in function declaration",
+                                     mCurrentToken.lexeme);
             }
         } else {
-            mErrorReporter.panic(mCurrentToken.loc, "identifier in function parameter declaration", mCurrentToken.lexeme);
+            mErrorReporter.panic(mCurrentToken.loc,
+                                 "identifier in function parameter declaration",
+                                 mCurrentToken.lexeme);
         }
     }
 
     if (mCurrentToken.type == TOKEN_TYPE::VOID_TOK) {
-        consumeToken(); // eat the 
+        consumeToken(); // eat the
         if (mCurrentToken.type != TOKEN_TYPE::RPAR) {
-        mErrorReporter.panic(mCurrentToken.loc,
-                    "')' after 'void' in function declaration",
-                    mCurrentToken.lexeme);
+            mErrorReporter.panic(mCurrentToken.loc,
+                                 "')' after 'void' in function declaration",
+                                 mCurrentToken.lexeme);
         }
     } else if (param_list.size() == 0 &&
                mCurrentToken.type != TOKEN_TYPE::RPAR) {
-        mErrorReporter.panic(mCurrentToken.loc, "'void' or parameter list in function declaration", mCurrentToken.lexeme);
+        mErrorReporter.panic(mCurrentToken.loc,
+                             "'void' or parameter list in function declaration",
+                             mCurrentToken.lexeme);
     }
-
-    
 
     return param_list;
 }
@@ -791,13 +814,13 @@ std::unique_ptr<DeclAST> Parser::ParseDecl() {
                 consumeToken();   // eat ;
 
                 if (typeTok.type != TOKEN_TYPE::VOID_TOK)
-                    return std::make_unique<GlobVarDeclAST>(declLoc,
-                        IdName, stringToType(typeTok.lexeme));
+                    return std::make_unique<GlobVarDeclAST>(
+                        declLoc, IdName, stringToType(typeTok.lexeme));
                 else
-                    mErrorReporter.panic(
-                        typeTok.loc,
-                        "'int', 'bool' or 'float' type for global variable declaration",
-                        typeTok.lexeme);
+                    mErrorReporter.panic(typeTok.loc,
+                                         "'int', 'bool' or 'float' type for "
+                                         "global variable declaration",
+                                         typeTok.lexeme);
             } else if (mCurrentToken.type ==
                        TOKEN_TYPE::LPAR) { // found '(' then this is a function
                                            // declaration.
@@ -809,33 +832,34 @@ std::unique_ptr<DeclAST> Parser::ParseDecl() {
 
                 if (mCurrentToken.type != TOKEN_TYPE::RPAR) // syntax error
                     mErrorReporter.panic(mCurrentToken.loc,
-                                "')' in function declaration",
-                                mCurrentToken.lexeme);
+                                         "')' in function declaration",
+                                         mCurrentToken.lexeme);
 
                 consumeToken(); // eat )
 
-                auto Proto = std::make_unique<FunctionPrototypeAST>(declLoc,
-                    IdName, stringToType(typeTok.lexeme), std::move(P));
+                auto Proto = std::make_unique<FunctionPrototypeAST>(
+                    declLoc, IdName, stringToType(typeTok.lexeme),
+                    std::move(P));
 
-                auto B = ParseBlock(); // parse the function body
+                auto B = ParseBlock(true); // parse the function body
                 if (!B)
-                    mErrorReporter.panic(
-                        mCurrentToken.loc,
-                        "function body definition",
-                        mCurrentToken.lexeme);
+                    mErrorReporter.panic(mCurrentToken.loc,
+                                         "function body definition",
+                                         mCurrentToken.lexeme);
 
-                return std::make_unique<FunctionDeclAST>(declLoc, std::move(Proto),
-                                                         std::move(B));
+                return std::make_unique<FunctionDeclAST>(
+                    declLoc, std::move(Proto), std::move(B));
             } else
-                mErrorReporter.panic(mCurrentToken.loc, "';' or ('", mCurrentToken.lexeme);
+                mErrorReporter.panic(mCurrentToken.loc, "';' or ('",
+                                     mCurrentToken.lexeme);
         } else
-            mErrorReporter.panic(mCurrentToken.loc, "an identifier", mCurrentToken.lexeme);
+            mErrorReporter.panic(mCurrentToken.loc, "an identifier",
+                                 mCurrentToken.lexeme);
 
     } else
-        mErrorReporter.panic(
-            mCurrentToken.loc,
-            "'void', 'int' or 'float' or EOF token",
-            mCurrentToken.lexeme); // syntax error
+        mErrorReporter.panic(mCurrentToken.loc,
+                             "'void', 'int' or 'float' or EOF token",
+                             mCurrentToken.lexeme); // syntax error
 
     return nullptr;
 }
@@ -866,8 +890,8 @@ std::unique_ptr<FunctionPrototypeAST> Parser::ParseExtern() {
 
     if (mCurrentToken.type != TOKEN_TYPE::EXTERN) {
         mErrorReporter.panic(mCurrentToken.loc,
-                    "'extern' in extern function declaration",
-                    mCurrentToken.lexeme);
+                             "'extern' in extern function declaration",
+                             mCurrentToken.lexeme);
     }
 
     consumeToken(); // eat the EXTERN
@@ -882,17 +906,19 @@ std::unique_ptr<FunctionPrototypeAST> Parser::ParseExtern() {
 
         if (mCurrentToken.type != TOKEN_TYPE::IDENT) {
             mErrorReporter.panic(mCurrentToken.loc,
-                        "an identifier in extern function declaration",
-                        mCurrentToken.lexeme);
+                                 "an identifier in extern function declaration",
+                                 mCurrentToken.lexeme);
         }
 
         IdName = mCurrentToken.getIdentifierStr(); // save the identifier name
         SourceLoc funcLoc = mCurrentToken.loc;
-        consumeToken();                            // eat the IDENT
+        consumeToken(); // eat the IDENT
 
         if (mCurrentToken.type != TOKEN_TYPE::LPAR)
-            mErrorReporter.panic(mCurrentToken.loc, "'(' in ending extern function "
-                                       "statement", mCurrentToken.lexeme);
+            mErrorReporter.panic(mCurrentToken.loc,
+                                 "'(' in ending extern function "
+                                 "statement",
+                                 mCurrentToken.lexeme);
 
         consumeToken(); // eat (
 
@@ -900,26 +926,28 @@ std::unique_ptr<FunctionPrototypeAST> Parser::ParseExtern() {
                                    // vector of params
 
         if (mCurrentToken.type != TOKEN_TYPE::RPAR) // syntax error
-            mErrorReporter.panic(mCurrentToken.loc, "')' in closing extern function "
-                                       "declaration",
-                        mCurrentToken.lexeme);
+            mErrorReporter.panic(mCurrentToken.loc,
+                                 "')' in closing extern function "
+                                 "declaration",
+                                 mCurrentToken.lexeme);
 
         consumeToken(); // eat )
 
         if (mCurrentToken.type == TOKEN_TYPE::SC) {
             consumeToken(); // eat ";"
 
-            auto Proto = std::make_unique<FunctionPrototypeAST>(funcLoc,
-                IdName, stringToType(PrevTok.lexeme), std::move(P));
+            auto Proto = std::make_unique<FunctionPrototypeAST>(
+                funcLoc, IdName, stringToType(PrevTok.lexeme), std::move(P));
             return std::move(Proto);
         } else
             mErrorReporter.panic(mCurrentToken.loc,
-                        "'(' in extern function declaration",
-                        mCurrentToken.lexeme);
+                                 "'(' in extern function declaration",
+                                 mCurrentToken.lexeme);
     } else
-        mErrorReporter.panic(mCurrentToken.loc,
-                            "'void', 'int', 'bool' or 'float' in extern function declaration",
-                            mCurrentToken.lexeme);
+        mErrorReporter.panic(
+            mCurrentToken.loc,
+            "'void', 'int', 'bool' or 'float' in extern function declaration",
+            mCurrentToken.lexeme);
 }
 
 std::vector<std::unique_ptr<FunctionPrototypeAST>> Parser::ParseExternList() {
@@ -947,25 +975,26 @@ std::unique_ptr<ProgramAST> Parser::parse() {
     SourceLoc programLoc = mCurrentToken.loc;
 
     if (mCurrentToken.type == TOKEN_TYPE::EOF_TOK)
-        return std::make_unique<ProgramAST>(programLoc, std::move(externList), std::move(declarationList));
+        return std::make_unique<ProgramAST>(programLoc, std::move(externList),
+                                            std::move(declarationList));
 
     auto externs = ParseExternList();
     for (auto &ext : externs) {
         externList.emplace_back(std::move(ext));
     }
 
-
-
     if (mCurrentToken.type == TOKEN_TYPE::EOF_TOK)
-        return std::make_unique<ProgramAST>(programLoc, std::move(externList), std::move(declarationList));
+        return std::make_unique<ProgramAST>(programLoc, std::move(externList),
+                                            std::move(declarationList));
     auto decls = ParseDeclList();
     for (auto &decl : decls) {
         declarationList.emplace_back(std::move(decl));
     }
 
     if (mCurrentToken.type == TOKEN_TYPE::EOF_TOK)
-        return std::make_unique<ProgramAST>(programLoc, std::move(externList), std::move(declarationList));
+        return std::make_unique<ProgramAST>(programLoc, std::move(externList),
+                                            std::move(declarationList));
     mErrorReporter.panic(mCurrentToken.loc,
-                "EOF token after parsing extern and decl lists",
-                mCurrentToken.lexeme);
+                         "EOF token after parsing extern and decl lists",
+                         mCurrentToken.lexeme);
 }

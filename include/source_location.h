@@ -3,7 +3,7 @@
 
 /**
  * @brief Represents a location in the source code.
- * 
+ *
  */
 struct SourceLoc {
     int line;

@@ -32,10 +32,16 @@ std::string ProgramAST::to_string(int indent) const {
     for (const auto &ext : mExternList) {
         result += ext->to_string(indent + 2) + "\n";
     }
-    result += indentString(indent + 1) + "Declarations:\n"; 
+    result += indentString(indent + 1) + "Declarations:\n";
     for (const auto &decl : mDeclarationList) {
         result += decl->to_string(indent + 2) + "\n";
     }
+    return result;
+};
+
+std::string IntToFloatCastAST::to_string(int indent) const {
+    std::string result = indentString(indent) + "Cast Int to Float:\n";
+    result += mExpr->to_string(indent + 1);
     return result;
 };
 
@@ -58,8 +64,8 @@ std::string AssignExprAST::to_string(int indent) const {
     return result;
 };
 std::string BinaryExprAST::to_string(int indent) const {
-    std::string result = indentString(indent) + "BinaryExpression: " +
-                         std::to_string(static_cast<int>(mOp)) + "\n";
+    std::string result = indentString(indent) +
+                         "BinaryExpression: " + operator_to_string(mOp) + "\n";
     result += mLeft->to_string(indent + 1) + "\n";
     result += mRight->to_string(indent + 1);
     return result;
@@ -72,12 +78,12 @@ std::string UnaryExprAST::to_string(int indent) const {
 };
 std::string ArgsAST::to_string(int indent) const {
     std::string result = indentString(indent) + "Arguments:\n";
-    for (const auto &arg : ArgsList) {
+    for (const auto &arg : mArgsList) {
         result += arg->to_string(indent + 1) + "\n";
     }
 
     // Remove the trailing newline
-    if (!ArgsList.empty()) {
+    if (!mArgsList.empty()) {
         result.pop_back();
     }
 

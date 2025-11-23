@@ -62,7 +62,7 @@ TOKEN Lexer::returnToken(std::string lexVal, TOKEN_TYPE tokType) {
     TOKEN return_tok;
     return_tok.lexeme = lexVal;
     return_tok.type = tokType;
-    return_tok.loc = SourceLoc {
+    return_tok.loc = SourceLoc{
         mLineNo,
         mColumnNo - static_cast<int>(lexVal.length()) - 1,
     };

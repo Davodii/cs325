@@ -1,8 +1,9 @@
 #include "ast.h"
 #include "codegen.h"
+#include "error_reporter.h"
 #include "lexer.h"
 #include "parser.h"
-#include "error_reporter.h"
+#include "semantic_analyser.h"
 
 #include <cstdio>
 #include <iostream>
@@ -36,15 +37,16 @@ int main(int argc, char **argv) {
     // NOTE: For debugging, print the AST
     fprintf(stderr, "%s\n", ast->to_string().c_str());
 
+    // Run semantic analysis
+    SemanticAnalyser semanticAnalyser(errorReporter);
+
+    std::unique_ptr<ProgramAST> annotated =
+        semanticAnalyser.run(std::move(ast));
+
+    fprintf(stderr, "Semantic analysis finished!\n");
+
     // Initialize code generation
     TheModule = std::make_unique<Module>("mini-c", TheContext);
-
-    // Generate code from AST
-    // for (const auto& node : ast) {
-    //   if (node) {
-    //     node->codegen();
-    //   }
-    // }
 
     // TODO: Use CodegenVisitor to generate code
 
