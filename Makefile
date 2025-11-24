@@ -3,9 +3,9 @@
 CXX=clang++ -std=c++17
 
 # --- Build Mode ---
-MODE = debug
+# MODE = debug
 # MODE = asan
-# MODE = release
+MODE = release
 
 # --- Base compiler + linker flags ---
 

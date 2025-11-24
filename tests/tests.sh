@@ -6,10 +6,10 @@ set -e
 export LLVM_INSTALL_PATH=/modules/cs325/llvm-21.1.0
 export PATH=$LLVM_INSTALL_PATH/bin:$PATH
 export LD_LIBRARY_PATH=$LLVM_INSTALL_PATH/lib:$LD_LIBRARY_PATH
-# CLANG=$LLVM_INSTALL_PATH/bin/clang++
-# module load GCC/13.3.0
+CLANG=$LLVM_INSTALL_PATH/bin/clang++
+module load GCC/13.3.0
 
-CLANG=clang++
+#CLANG=clang++
 
 TEST_COMPILE_ONLY=0
 
@@ -30,7 +30,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 
-DIR="$(pwd)/build"
+DIR="$(pwd)"
 
 ### Build mccomp compiler
 echo "Cleanup *****"
@@ -38,8 +38,8 @@ rm -rf ./mccomp
 
 echo "Compile *****"
 
-# make clean
-# make -j mccomp
+make clean
+make -j mccomp
 make
 
 COMP=$DIR/mccomp
