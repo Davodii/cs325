@@ -11,6 +11,59 @@ static bool isNumeric(TYPE type) {
     return (type == TYPE::INT || type == TYPE::FLOAT);
 }
 
+SymbolTable::SymbolTable() {
+    // Start with a global scope
+    scopeStack.emplace_back();
+}
+
+void SymbolTable::enterScope() {
+    // Enter a new scope by pushing a new map onto the stack
+    scopeStack.emplace_back();
+}
+
+void SymbolTable::leaveScope() {
+    // Leave the current scope by popping the top map off the stack
+    if (scopeStack.size() > 1) {
+        scopeStack.pop_back();
+    } else {
+        // Error: Attempting to leave global scope
+        // TODO: create and throw a specific semantic error exception
+        throw std::runtime_error("Cannot leave global scope");
+    }
+}
+
+bool SymbolTable::addSymbol(Symbol symbol) {
+    auto &currentScope = scopeStack.back();
+    // Check for re-declaration in the current scope
+    if (currentScope.find(symbol.getName()) != currentScope.end()) {
+        return false; // Re-declaration found
+    }
+
+    // Note: Only checking the current scope for re-declaration.
+    //       This allows for shadowing of variables in inner scopes.
+
+    // Add the symbol to the current scope
+    currentScope[symbol.getName()] = symbol;
+    return true;
+}
+
+Symbol* SymbolTable::lookup(const std::string &name) {
+    // Search from the innermost scope to the outermost
+    for (auto scopeIt = scopeStack.rbegin(); scopeIt != scopeStack.rend();
+         ++scopeIt) {
+        auto it = scopeIt->find(name);
+        if (it != scopeIt->end()) {
+            return &it->second; // Found the symbol
+        }
+    }
+    return nullptr; // Symbol not found
+}
+
+bool SymbolTable::isDefinedInCurrentScope(const std::string &name) const {
+    const auto &currentScope = scopeStack.back();
+    return currentScope.find(name) != currentScope.end();
+}
+
 std::unique_ptr<ProgramAST>
 SemanticAnalyser::run(std::unique_ptr<ProgramAST> program) {
     program->accept(*this);
@@ -19,9 +72,11 @@ SemanticAnalyser::run(std::unique_ptr<ProgramAST> program) {
 
 void SemanticAnalyser::visit(ProgramAST &n) {
     // Iterate over the extern list and visit
+    mDefiningExtern = true;
     for (auto &ext : *n.getExternList()) {
         ext->accept(*this);
     }
+    mDefiningExtern = false;
 
     // Iterate over the declaration list and visit
     for (auto &decl : *n.getDeclarationList()) {
@@ -58,9 +113,6 @@ void SemanticAnalyser::visit(VariableASTnode &n) {
 
     // Set the type of the variable
     n.setType(sym->getType());
-
-    // Assign the resolved symbol
-    n.setResolvedSymbol(sym);
 }
 
 void SemanticAnalyser::visit(AssignExprAST &n) {
@@ -236,8 +288,9 @@ void SemanticAnalyser::visit(CallExprAST &n) {
     // Visit the arguments
     n.getArgs()->accept(*this);
 
+    Symbol *sym = mSymbolTable.lookup(n.getCallee()->getName());
+
     // Check the callee is a function
-    Symbol *sym = n.getCallee()->getResolvedSymbol();
     if (!sym || sym->getKind() != IDENT_TYPE::FUNCTION) {
         mErrorReporter.typeError(n.getCallee()->getSourceLocation(),
                                  "identifier to be a function", "variable");
@@ -277,20 +330,19 @@ void SemanticAnalyser::visit(CallExprAST &n) {
 }
 
 void SemanticAnalyser::visit(ParamAST &n) {
+    // Check if the parameter is already defined in the current scope
+    if (mSymbolTable.isDefinedInCurrentScope(n.getName())) {
+        mErrorReporter.redefinition(n.getSourceLocation(), n.getName());
+    }
+
     // Add a new entry to symbol table
     Symbol symbol = Symbol(
         n.getName(), n.getType(), IDENT_TYPE::PARAMETER,
         nullptr // TODO: I think the symbol is messed up, this seems wrong
     );
 
-    Symbol* symbolPtr = new Symbol(symbol);
-
-    // Link the symbol to the parameter AST node
-    n.setSymbol(symbolPtr);
-
-    if (!mSymbolTable.addSymbol(symbolPtr)) {
-        mErrorReporter.redefinition(n.getSourceLocation(), n.getName());
-    }
+    // Add the symbol to the symbol table
+    mSymbolTable.addSymbol(symbol);
 }
 
 void SemanticAnalyser::visit(VarDeclAST &n) {
@@ -302,13 +354,8 @@ void SemanticAnalyser::visit(VarDeclAST &n) {
     // Add a new entry to symbol table
     Symbol symbol = Symbol(n.getName(), n.getType(), IDENT_TYPE::LOCAL, &n);
 
-    Symbol* symbolPtr = new Symbol(symbol);
-
-    // Link the symbol to the variable declaration AST node
-    n.setSymbol(symbolPtr);
-
     // Add the symbol to the symbol table
-    mSymbolTable.addSymbol(symbolPtr);
+    mSymbolTable.addSymbol(symbol);
 }
 
 void SemanticAnalyser::visit(GlobVarDeclAST &n) {
@@ -319,13 +366,8 @@ void SemanticAnalyser::visit(GlobVarDeclAST &n) {
 
     Symbol symbol = Symbol(n.getName(), n.getType(), IDENT_TYPE::GLOBAL, &n);
 
-    Symbol* symbolPtr = new Symbol(symbol);
-
     // Add the symbol to the symbol table
-    mSymbolTable.addSymbol(symbolPtr);
-
-    // Link the symbol to the variable declaration AST node
-    n.symbol = symbolPtr;
+    mSymbolTable.addSymbol(symbol);
 }
 
 void SemanticAnalyser::visit(BlockAST &n) {
@@ -363,14 +405,11 @@ void SemanticAnalyser::visit(FunctionPrototypeAST &n) {
     // Add a new entry to symbol table
     Symbol symbol = Symbol(n.getName(), n.getType(), IDENT_TYPE::FUNCTION, &n);
 
-    Symbol* symbolPtr = new Symbol(symbol);
-
     // Add the symbol to the symbol table
-    // TODO: we need to add this to the global scope, not the current scope
-    mSymbolTable.addSymbol(symbolPtr);
+    mSymbolTable.addSymbol(symbol);
 
     // Link the symbol to the function prototype AST node
-    n.symbol = symbolPtr;
+    n.setType(symbol.getType());
 
     // Enter a new scope
     mSymbolTable.enterScope();
@@ -378,6 +417,11 @@ void SemanticAnalyser::visit(FunctionPrototypeAST &n) {
     // Visit the parameters
     for (auto &node : n.getParams()) {
         node->accept(*this);
+    }
+
+    if (mDefiningExtern) {
+        // Leave the scope immediately if we are defining an extern function
+        mSymbolTable.leaveScope();
     }
 }
 

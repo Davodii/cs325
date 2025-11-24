@@ -22,15 +22,13 @@
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/TargetParser/Host.h"
 #include <llvm/IR/Value.h>
+#include <map>
 #include <memory>
-#include <stack>
 #include <string>
 #include <vector>
 
 #include "ast_visitor.h"
 #include "error_reporter.h"
-#include "symbol.h"
-#include "symbol_table.h"
 
 #include "ast.h"
 
@@ -43,22 +41,42 @@ class CodegenSymbolTable {
         enterScope();
     }
 
+    /**
+     * @brief Enter a new scope.
+     * 
+     */
     void enterScope() {
         mScopes.emplace_back();
     }
 
+    /**
+     * @brief Exit the current scope.
+     * 
+     */
     void exitScope() {
         if (!mScopes.empty()) {
             mScopes.pop_back();
         }
     }
 
+    /**
+        * @brief Insert a new variable into the current scope.
+        * 
+        * @param name The name of the variable.
+        * @param alloca The LLVM AllocaInst representing the variable.
+        */
     void insert(const std::string &name, llvm::AllocaInst *alloca) {
         if (!mScopes.empty()) {
             mScopes.back()[name] = alloca;
         }
     }
 
+    /**
+     * @brief Lookup a variable by name, searching from innermost to outermost scope.
+     * 
+     * @param name The name of the variable to look up.
+     * @return llvm::Value* The LLVM Value representing the variable, or nullptr if not found.
+     */
     llvm::Value *lookup(const std::string &name) {
         // Search from innermost to outermost scope
         for (auto scopeIt = mScopes.rbegin(); scopeIt != mScopes.rend(); ++scopeIt) {
@@ -78,6 +96,11 @@ class CodegenSymbolTable {
         return nullptr; // Not found
     }
 
+    /**
+     * @brief Get the current scope's symbol table.
+     * 
+     * @return std::map<std::string, llvm::AllocaInst*>& 
+     */
     std::map<std::string, llvm::AllocaInst*> &currentScope() {
         return mScopes.back();
     }
@@ -103,10 +126,7 @@ class CodeGeneration : public ASTVisitor {
     // Return the LLVM module
     llvm::Module &getModule() {
         return mLlvmModule;
-    }
-
-    void visit(ProgramAST &) override;
-
+    }    
     llvm::Type *convertTYPEToLLVMType(TYPE type) {
         switch (type) {
             case TYPE::INT:
@@ -122,6 +142,8 @@ class CodeGeneration : public ASTVisitor {
         }
     }
 
+    // --- Implementation for the program node ---
+    void visit(ProgramAST &) override;
     // --- Implementations for literal nodes ---
     void visit(IntToFloatCastAST &) override;
     void visit(IntASTnode &) override;

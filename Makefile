@@ -1,3 +1,4 @@
+
 # Define C++ compiler
 CXX=clang++ -std=c++17
 
@@ -33,16 +34,6 @@ ifeq ($(MODE), release)
 	CPPFLAGS = -O3 $(LLVM_CPPFLAGS) $(BASE_CPPFLAGS)
 	LDFLAGS = $(LLVM_LDFLAGS)
 endif
-# Define compile flags
-# Get the C++ flags from llvm-config
-# -O3 - optimisation level
-# -c  - compile only
-# -Iinclude - look for headers in the 'include' directory
-# CPPFLAGS = `llvm-config --cppflags` -Iinclude \
-# 		   -Wno-unused-function -Wno-unknown-warning-option -fno-rtti
-
-# Define linker flags
-# LDFLAGS = -fsanitize=address `llvm-config --ldflags --system-libs --libs all`
 
 # --- Project Files ---
 
@@ -50,7 +41,8 @@ endif
 BUILD_DIR = build
 
 # Final executable name
-TARGET = $(BUILD_DIR)/mccomp
+# TARGET = $(BUILD_DIR)/mccomp
+TARGET = mccomp
 
 # All .cpp source files are now in the 'src' directory
 SRCS = $(wildcard src/*.cpp)

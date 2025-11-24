@@ -195,7 +195,8 @@ class Parser {
     /**
      * @brief Parse an expression.
      *
-     * expr ::= logical_or
+     * expr ::= assignment 
+     *        | logical_or
      *
      * @return std::unique_ptr<ExprAST>
      */
@@ -327,7 +328,7 @@ class Parser {
     /**
      * @brief Parse a while statement.
      *
-     * while_stmt ::= "while" "(" expr ")" block
+     * while_stmt ::= "while" "(" expr ")" stmt
      *
      * @return std::unique_ptr<WhileExprAST>
      */

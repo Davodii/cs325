@@ -4,7 +4,6 @@
 #include "ast_visitor.h"
 #include "lexer.h"
 #include "source_location.h"
-#include "symbol.h"
 #include "types.h"
 #include <cassert>
 #include <memory>
@@ -171,20 +170,11 @@ class VariableASTnode : public ExprAST {
     const std::string &getName() const { return mName; }
     std::string to_string(int indent = 0) const override;
 
-    Symbol *getResolvedSymbol() const { return mpResolvedSymbol; }
-    void setResolvedSymbol(Symbol *symbol) { mpResolvedSymbol = symbol; }
-
-    TYPE getType() const {
-        assert(mpResolvedSymbol && "Symbol not resolved for variable");
-        return mpResolvedSymbol->getType();
-    }
-
     void accept(ASTVisitor &v) override { v.visit(*this); }
 
   private:
     TOKEN mToken;
     std::string mName;
-    Symbol *mpResolvedSymbol;
 };
 
 /**
@@ -317,15 +307,8 @@ class ParamAST : public ASTnode {
     const std::string &getName() const { return mName; }
     std::string to_string(int indent = 0) const override;
     void accept(ASTVisitor &v) override { v.visit(*this); }
-
-    Symbol *getSymbol() const { return symbol; }
-    void setSymbol(Symbol *sym) { symbol = sym; }
-
     TYPE getType() const { return mType; }
     void setType(TYPE type) { mType = type; }
-
-    Symbol *symbol;
-
   private:
     std::string mName;
     TYPE mType;
@@ -344,15 +327,9 @@ class VarDeclAST : public DeclAST {
     const TYPE getType() const { return mType; }
     std::string to_string(int indent = 0) const override;
     void accept(ASTVisitor &v) override { v.visit(*this); }
-
-    void setSymbol(Symbol *sym) { mSymbol = sym; }
-    Symbol *getSymbol() const { return mSymbol; }
-
   private:
     std::string mName;
     TYPE mType;
-    Symbol *mSymbol;
-
 };
 
 /**
@@ -365,10 +342,9 @@ class GlobVarDeclAST : public DeclAST {
         : DeclAST(sourceLoc), mName(name), mType(type) {}
     const std::string &getName() const { return mName; }
     const TYPE getType() const { return mType; }
+    void setType(TYPE type) { mType = type; }
     std::string to_string(int indent = 0) const override;
     void accept(ASTVisitor &v) override { v.visit(*this); }
-
-    Symbol *symbol;
 
   private:
     std::string mName;
@@ -417,12 +393,12 @@ class FunctionPrototypeAST : public ASTnode {
 
     const std::string &getName() const { return mName; }
     const TYPE getType() const { return mType; }
+    void setType(TYPE type) { mType = type; }
     int getSize() const { return mParams.size(); }
     std::vector<std::unique_ptr<ParamAST>> &getParams() { return mParams; }
     std::string to_string(int indent = 0) const override;
     void accept(ASTVisitor &v) override { v.visit(*this); }
 
-    Symbol *symbol;
 
   private:
     std::string mName;
