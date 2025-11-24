@@ -8,7 +8,7 @@
 #include <vector>
 
 class SymbolTable {
-    std::vector<std::map<std::string, std::unique_ptr<Symbol>>> scopeStack;
+    std::vector<std::map<std::string, Symbol*>> scopeStack;
 
   public:
     SymbolTable();
@@ -32,7 +32,7 @@ class SymbolTable {
      * @return true if the symbol was added successfully.
      * @return false if there was a re-declaration in the current scope.
      */
-    bool addSymbol(std::unique_ptr<Symbol> symbol);
+    bool addSymbol(Symbol* symbol);
 
     /**
      * @brief Lookup a symbol by name, searching from the innermost scope to the

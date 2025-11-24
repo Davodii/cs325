@@ -45,13 +45,14 @@ int main(int argc, char **argv) {
 
     fprintf(stderr, "Semantic analysis finished!\n");
 
-
+    // TODO: Use CodegenVisitor to generate code
     CodeGeneration codegenVisitor(errorReporter);
 
-    // Initialize code generation
-    // TheModule = std::make_unique<Module>("mini-c", TheContext);
+    codegenVisitor.generateCode(std::move(annotated));
 
-    // TODO: Use CodegenVisitor to generate code
+    fprintf(stderr, "Code generation finished!\n");
+
+    llvm::Module *TheModule = &codegenVisitor.getModule();
 
     // Print IR
     printf("********************* FINAL IR (begin) "
@@ -66,11 +67,10 @@ int main(int argc, char **argv) {
         errs() << "Could not open file: " << EC.message();
         return 1;
     }
-    // TheModule->print(errs(), nullptr); // print IR to terminal
-    // TheModule->print(dest, nullptr);
+    TheModule->print(errs(), nullptr); // print IR to terminal
+    TheModule->print(dest, nullptr);
     printf("********************* FINAL IR (end) "
            "******************************\n");
 
-    // fclose(pFile); // close the file that contains the code that was parsed
     return 0;
 }

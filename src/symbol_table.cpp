@@ -22,7 +22,7 @@ void SymbolTable::leaveScope() {
     }
 }
 
-bool SymbolTable::addSymbol(std::unique_ptr<Symbol> symbol) {
+bool SymbolTable::addSymbol(Symbol* symbol) {
     auto &currentScope = scopeStack.back();
     // Check for re-declaration in the current scope
     if (currentScope.find(symbol->getName()) != currentScope.end()) {
@@ -33,7 +33,7 @@ bool SymbolTable::addSymbol(std::unique_ptr<Symbol> symbol) {
     //       This allows for shadowing of variables in inner scopes.
 
     // Add the symbol to the current scope
-    currentScope[symbol->getName()] = std::move(symbol);
+    currentScope[symbol->getName()] = symbol;
     return true;
 }
 
@@ -43,7 +43,7 @@ Symbol *SymbolTable::lookup(const std::string &name) {
          ++scopeIt) {
         auto it = scopeIt->find(name);
         if (it != scopeIt->end()) {
-            return it->second.get(); // Found the symbol
+            return it->second; // Found the symbol
         }
     }
     return nullptr; // Symbol not found

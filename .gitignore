@@ -4,12 +4,12 @@
 mccomp
 output.ll
 
-/tests/addition/addition
+/tests/addition/add
 /tests/array_addition/array_addition
 /tests/array_func_arg_1d/array_func_arg_1d
 /tests/cosine/cosine
-/tests/factorial/factorial
-/tests/fibonacci/fibonacci
+/tests/factorial/fact
+/tests/fibonacci/fib
 /tests/global_array/global_array
 /tests/leap/leap
 /tests/matrix_multiplication/matrix_multiplication

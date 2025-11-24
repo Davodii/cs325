@@ -59,7 +59,7 @@ class CodegenSymbolTable {
         }
     }
 
-    llvm::AllocaInst *lookup(const std::string &name) {
+    llvm::Value *lookup(const std::string &name) {
         // Search from innermost to outermost scope
         for (auto scopeIt = mScopes.rbegin(); scopeIt != mScopes.rend(); ++scopeIt) {
             auto &scope = *scopeIt;
@@ -72,8 +72,7 @@ class CodegenSymbolTable {
         // Check for global variable
         llvm::GlobalVariable *globalVar = mModule.getGlobalVariable(name);
         if (globalVar) {
-            // TODO: Handle global variable types properly
-            return llvm::cast<llvm::AllocaInst>(globalVar);
+            return globalVar;
         }
 
         return nullptr; // Not found
@@ -100,6 +99,11 @@ class CodeGeneration : public ASTVisitor {
 
     /// Generate LLVM IR from the AST
     void generateCode(std::unique_ptr<ProgramAST> program);
+
+    // Return the LLVM module
+    llvm::Module &getModule() {
+        return mLlvmModule;
+    }
 
     void visit(ProgramAST &) override;
 
@@ -154,6 +158,10 @@ private:
     llvm::IRBuilder<> mLlvmBuilder;
     llvm::Module mLlvmModule;
 
+    llvm::Value *generateComparisonOp(TOKEN_TYPE op, llvm::Value *left, llvm::Value *right, TYPE opType);
+    llvm::Value *generateBooleanOp(TOKEN_TYPE op, llvm::Value *left, llvm::Value *right);
+    llvm::Value *generateFloatOp(TOKEN_TYPE op, llvm::Value *left, llvm::Value *right);
+    llvm::Value *generateIntegerOp(TOKEN_TYPE op, llvm::Value *left, llvm::Value *right);
 };
 
 #endif

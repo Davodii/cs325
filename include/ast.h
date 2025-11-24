@@ -45,8 +45,8 @@ class DeclAST : public ASTnode {
 class ProgramAST : public ASTnode {
   public:
     ProgramAST(SourceLoc sourceLoc,
-               std::vector<std::unique_ptr<ASTnode>> externList,
-               std::vector<std::unique_ptr<ASTnode>> declaratioList)
+               std::vector<std::unique_ptr<FunctionPrototypeAST>> externList,
+               std::vector<std::unique_ptr<DeclAST>> declaratioList)
         : ASTnode(sourceLoc), mExternList(std::move(externList)),
           mDeclarationList(std::move(declaratioList)) {}
 
@@ -54,16 +54,16 @@ class ProgramAST : public ASTnode {
     std::string to_string(int indent = 0) const override;
     void accept(ASTVisitor &v) override { v.visit(*this); }
 
-    std::vector<std::unique_ptr<ASTnode>> *getExternList() {
+    std::vector<std::unique_ptr<FunctionPrototypeAST>> *getExternList() {
         return &mExternList;
     }
-    std::vector<std::unique_ptr<ASTnode>> *getDeclarationList() {
+    std::vector<std::unique_ptr<DeclAST>> *getDeclarationList() {
         return &mDeclarationList;
     }
 
   private:
-    std::vector<std::unique_ptr<ASTnode>> mExternList;
-    std::vector<std::unique_ptr<ASTnode>> mDeclarationList;
+    std::vector<std::unique_ptr<FunctionPrototypeAST>> mExternList;
+    std::vector<std::unique_ptr<DeclAST>> mDeclarationList;
 };
 
 // ----- Expressions -----

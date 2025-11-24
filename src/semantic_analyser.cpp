@@ -283,12 +283,12 @@ void SemanticAnalyser::visit(ParamAST &n) {
         nullptr // TODO: I think the symbol is messed up, this seems wrong
     );
 
-    std::unique_ptr<Symbol> symbolPtr = std::make_unique<Symbol>(symbol);
+    Symbol* symbolPtr = new Symbol(symbol);
 
     // Link the symbol to the parameter AST node
-    n.setSymbol(symbolPtr.get());
+    n.setSymbol(symbolPtr);
 
-    if (!mSymbolTable.addSymbol(std::move(symbolPtr))) {
+    if (!mSymbolTable.addSymbol(symbolPtr)) {
         mErrorReporter.redefinition(n.getSourceLocation(), n.getName());
     }
 }
@@ -302,13 +302,13 @@ void SemanticAnalyser::visit(VarDeclAST &n) {
     // Add a new entry to symbol table
     Symbol symbol = Symbol(n.getName(), n.getType(), IDENT_TYPE::LOCAL, &n);
 
-    std::unique_ptr<Symbol> symbolPtr = std::make_unique<Symbol>(symbol);
+    Symbol* symbolPtr = new Symbol(symbol);
 
     // Link the symbol to the variable declaration AST node
-    n.setSymbol(symbolPtr.get());
+    n.setSymbol(symbolPtr);
 
     // Add the symbol to the symbol table
-    mSymbolTable.addSymbol(std::move(symbolPtr));
+    mSymbolTable.addSymbol(symbolPtr);
 }
 
 void SemanticAnalyser::visit(GlobVarDeclAST &n) {
@@ -319,13 +319,13 @@ void SemanticAnalyser::visit(GlobVarDeclAST &n) {
 
     Symbol symbol = Symbol(n.getName(), n.getType(), IDENT_TYPE::GLOBAL, &n);
 
-    std::unique_ptr<Symbol> symbolPtr = std::make_unique<Symbol>(symbol);
+    Symbol* symbolPtr = new Symbol(symbol);
 
     // Add the symbol to the symbol table
-    mSymbolTable.addSymbol(std::move(symbolPtr));
+    mSymbolTable.addSymbol(symbolPtr);
 
     // Link the symbol to the variable declaration AST node
-    n.symbol = symbolPtr.get();
+    n.symbol = symbolPtr;
 }
 
 void SemanticAnalyser::visit(BlockAST &n) {
@@ -363,14 +363,14 @@ void SemanticAnalyser::visit(FunctionPrototypeAST &n) {
     // Add a new entry to symbol table
     Symbol symbol = Symbol(n.getName(), n.getType(), IDENT_TYPE::FUNCTION, &n);
 
-    std::unique_ptr<Symbol> symbolPtr = std::make_unique<Symbol>(symbol);
+    Symbol* symbolPtr = new Symbol(symbol);
 
     // Add the symbol to the symbol table
     // TODO: we need to add this to the global scope, not the current scope
-    mSymbolTable.addSymbol(std::move(symbolPtr));
+    mSymbolTable.addSymbol(symbolPtr);
 
     // Link the symbol to the function prototype AST node
-    n.symbol = symbolPtr.get();
+    n.symbol = symbolPtr;
 
     // Enter a new scope
     mSymbolTable.enterScope();

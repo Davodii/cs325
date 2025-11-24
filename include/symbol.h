@@ -15,7 +15,7 @@ class Symbol {
         : name(name), type(type), identType(identType),
           declaration(declaration) {}
 
-    const std::string &getName() const { return name; }
+    std::string getName() const { return name; }
     TYPE getType() const { return type; }
     IDENT_TYPE getKind() const { return identType; }
     ASTnode *getDeclaration() const { return declaration; }

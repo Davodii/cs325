@@ -969,8 +969,8 @@ std::vector<std::unique_ptr<FunctionPrototypeAST>> Parser::ParseExternList() {
 }
 
 std::unique_ptr<ProgramAST> Parser::parse() {
-    std::vector<std::unique_ptr<ASTnode>> externList;
-    std::vector<std::unique_ptr<ASTnode>> declarationList;
+    std::vector<std::unique_ptr<FunctionPrototypeAST>> externList;
+    std::vector<std::unique_ptr<DeclAST>> declarationList;
 
     SourceLoc programLoc = mCurrentToken.loc;
 

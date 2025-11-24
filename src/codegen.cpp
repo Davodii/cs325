@@ -1,5 +1,7 @@
 #include "codegen.h"
 #include "ast.h"
+#include "lexer.h"
+#include "types.h"
 #include <llvm/ADT/APFloat.h>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Constant.h>
@@ -15,7 +17,47 @@ void CodeGeneration::generateCode(std::unique_ptr<ProgramAST> program) {
     program->accept(*this);
 }
 
-void CodeGeneration::visit(ProgramAST &n) {}
+void CodeGeneration::visit(ProgramAST &n) {
+    // Parse extern function declaration
+    for (auto &externDecl : *n.getExternList()) {
+        // Get the return type
+        llvm::Type *returnType = convertTYPEToLLVMType(externDecl->getType());
+
+        // Parse parameter types
+        std::vector<llvm::Type *> paramTypes;
+        for (const auto &param : externDecl->getParams()) {
+            llvm::Type *paramType = convertTYPEToLLVMType(param->getType());
+            paramTypes.push_back(paramType);
+        }
+
+        // Create the function type
+        llvm::FunctionType *funcType = llvm::FunctionType::get(
+            returnType,
+            paramTypes,
+            false // not variadic
+        );
+
+        // Create the function itself
+        llvm::Function *function = llvm::Function::Create(
+            funcType,
+            llvm::Function::ExternalLinkage,
+            externDecl->getName(),
+            mLlvmModule
+        );
+
+        // Add names to the parameters
+        unsigned idx = 0;
+        for (auto &arg : function->args()) {
+            arg.setName(externDecl->getParams()[idx]->getName());
+            ++idx;
+        }
+    }
+
+    // Parse global declarations
+    for (auto &decl : *n.getDeclarationList()) {
+        decl->accept(*this);
+    }
+}
 
 // --- Implementations for literal nodes ---
 
@@ -77,7 +119,7 @@ void CodeGeneration::visit(VariableASTnode &n) {
     // For R-value, load the variable's value
     llvm::Value *varPtr = mSymbolTable->lookup(n.getResolvedSymbol()->getName());
     if (!varPtr) {
-        mErrorReporter.codeGenError(n.getSourceLocation(), "Undefined variable: " + n.getName());
+        mErrorReporter.codeGenError(n.getSourceLocation(), "Undefined variable: " + n.getResolvedSymbol()->getName());
         mLastValue = nullptr;
         return;
     }
@@ -86,11 +128,11 @@ void CodeGeneration::visit(VariableASTnode &n) {
     mLastValue = mLlvmBuilder.CreateLoad(
         convertTYPEToLLVMType(n.getType()),
         varPtr,
-        n.getName() + "_load"
+        n.getResolvedSymbol()->getName() + "_load"
     );
 
     if (!mLastValue) {
-        mErrorReporter.codeGenError(n.getSourceLocation(), "Failed to generate load instruction for variable: " + n.getName());
+        mErrorReporter.codeGenError(n.getSourceLocation(), "Failed to generate load instruction for variable: " + n.getResolvedSymbol()->getName());
     }
 }
 
@@ -118,6 +160,60 @@ void CodeGeneration::visit(AssignExprAST &n) {
     }
 }
 
+llvm::Value *CodeGeneration::generateComparisonOp(TOKEN_TYPE op, llvm::Value *left, llvm::Value *right, TYPE opType) {
+    if (opType == TYPE::FLOAT) {
+        switch (op) {
+            case TOKEN_TYPE::EQ: return mLlvmBuilder.CreateFCmpUEQ(left, right, "eqtmp");
+            case TOKEN_TYPE::NE: return mLlvmBuilder.CreateFCmpUNE(left, right, "netmp");
+            case TOKEN_TYPE::LT: return mLlvmBuilder.CreateFCmpULT(left, right, "lttmp");
+            case TOKEN_TYPE::GT: return mLlvmBuilder.CreateFCmpUGT(left, right, "gttmp");
+            case TOKEN_TYPE::LE: return mLlvmBuilder.CreateFCmpULE(left, right, "letmp");
+            case TOKEN_TYPE::GE: return mLlvmBuilder.CreateFCmpUGE(left, right, "getmp");
+            default: return nullptr; // Unsupported operator
+        }
+    } else {
+        switch (op) {
+            case TOKEN_TYPE::EQ: return mLlvmBuilder.CreateICmpEQ(left, right, "eqtmp");
+            case TOKEN_TYPE::NE: return mLlvmBuilder.CreateICmpNE(left, right, "netmp");
+            case TOKEN_TYPE::LT: return mLlvmBuilder.CreateICmpSLT(left, right, "lttmp");
+            case TOKEN_TYPE::GT: return mLlvmBuilder.CreateICmpSGT(left, right, "gttmp");
+            case TOKEN_TYPE::LE: return mLlvmBuilder.CreateICmpSLE(left, right, "letmp");
+            case TOKEN_TYPE::GE: return mLlvmBuilder.CreateICmpSGE(left, right, "getmp");
+            default: return nullptr; // Unsupported operator
+        }
+    }
+}
+
+llvm::Value *CodeGeneration::generateBooleanOp(TOKEN_TYPE op, llvm::Value *left, llvm::Value *right) {
+    switch (op) {
+        case TOKEN_TYPE::AND: return mLlvmBuilder.CreateAnd(left, right, "andtmp");
+        case TOKEN_TYPE::OR:  return mLlvmBuilder.CreateOr(left, right, "ortmp");
+        default: return nullptr; // Unsupported operator
+    }
+}
+
+llvm::Value *CodeGeneration::generateFloatOp(TOKEN_TYPE op, llvm::Value *left, llvm::Value *right) {
+    switch (op) {
+        case TOKEN_TYPE::PLUS:      return mLlvmBuilder.CreateFAdd(left, right, "addtmp");
+        case TOKEN_TYPE::MINUS:     return mLlvmBuilder.CreateFSub(left, right, "subtmp");
+        case TOKEN_TYPE::ASTERIX:   return mLlvmBuilder.CreateFMul(left, right, "multmp");
+        case TOKEN_TYPE::DIV:       return mLlvmBuilder.CreateFDiv(left, right, "divtmp");
+        case TOKEN_TYPE::MOD:       return mLlvmBuilder.CreateFRem(left, right, "modtmp");
+        default: return nullptr; // Unsupported operator
+    }
+}
+
+llvm::Value *CodeGeneration::generateIntegerOp(TOKEN_TYPE op, llvm::Value *left, llvm::Value *right) {
+    switch (op) {
+        case TOKEN_TYPE::PLUS:      return mLlvmBuilder.CreateAdd(left, right, "addtmp");
+        case TOKEN_TYPE::MINUS:     return mLlvmBuilder.CreateSub(left, right, "subtmp");
+        case TOKEN_TYPE::ASTERIX:   return mLlvmBuilder.CreateMul(left, right, "multmp");
+        case TOKEN_TYPE::DIV:       return mLlvmBuilder.CreateSDiv(left, right, "divtmp");
+        case TOKEN_TYPE::MOD:       return mLlvmBuilder.CreateSRem(left, right, "modtmp");
+        default: return nullptr; // Unsupported operator
+    }
+}
+
 void CodeGeneration::visit(BinaryExprAST &n) {
     n.getLHS()->accept(*this);
     llvm::Value *left = mLastValue;
@@ -125,81 +221,62 @@ void CodeGeneration::visit(BinaryExprAST &n) {
     n.getRHS()->accept(*this);
     llvm::Value *right = mLastValue;
 
-    // Handle type-specific operations
-    if (n.getType() == TYPE::FLOAT) {
-        // Handle floating-point operations
-        switch (n.getOperator()) {
-            case TOKEN_TYPE::PLUS:
-                mLastValue = mLlvmBuilder.CreateFAdd(left, right, "faddtmp");
-                break;
-            case TOKEN_TYPE::MINUS:
-                mLastValue = mLlvmBuilder.CreateFSub(left, right, "fsubtmp");
-                break;
-            case TOKEN_TYPE::ASTERIX:
-                mLastValue = mLlvmBuilder.CreateFMul(left, right, "fmultmp");
-                break;
-            case TOKEN_TYPE::DIV:
-                mLastValue = mLlvmBuilder.CreateFDiv(left, right, "fdivtmp");
-                break;
-            default:
-                // Handle unsupported operators
-                mErrorReporter.codeGenError(n.getSourceLocation(), "Unsupported binary operator for float type");
-                mLastValue = nullptr;
-                break;
-        }
+    TOKEN_TYPE op = n.getOperator();
+    llvm::Value *result = nullptr;
 
-        if (!mLastValue) {
-            mErrorReporter.codeGenError(n.getSourceLocation(), "Failed to generate floating-point binary operation");
-        }
-        return;
+    if (op == TOKEN_TYPE::EQ || op == TOKEN_TYPE::NE || 
+        op == TOKEN_TYPE::LT || op == TOKEN_TYPE::GT || 
+        op == TOKEN_TYPE::LE || op == TOKEN_TYPE::GE) {
+        // Comparison operators return boolean values
+        result = generateComparisonOp(op, left, right, n.getLHS()->getType());
+    } else if (op == TOKEN_TYPE::AND || op == TOKEN_TYPE::OR) {
+        // Boolean operations
+        result = generateBooleanOp(op, left, right);
+    } else if (n.getType() == TYPE::FLOAT) {
+        // Floating-point arithmetic
+        result = generateFloatOp(op, left, right);
+    } else {
+        // Default to integer math
+        result = generateIntegerOp(op, left, right);
     }
 
-    switch (n.getOperator()) {
-        case TOKEN_TYPE::PLUS:
-            mLastValue = mLlvmBuilder.CreateAdd(left, right, "addtmp");
-            break;
-        case TOKEN_TYPE::MINUS:
-            mLastValue = mLlvmBuilder.CreateSub(left, right, "subtmp");
-            break;
-        case TOKEN_TYPE::ASTERIX:
-            mLastValue = mLlvmBuilder.CreateMul(left, right, "multmp");
-            break;
-        case TOKEN_TYPE::DIV:
-            mLastValue = mLlvmBuilder.CreateSDiv(left, right, "divtmp");
-            break;
-        default:
-            // Handle unsupported operators
-            mErrorReporter.codeGenError(n.getSourceLocation(), "Unsupported binary operator");
-            mLastValue = nullptr;
-            break;
-    }
-
-    if (!mLastValue) {
+    if (!result) {
         mErrorReporter.codeGenError(n.getSourceLocation(), "Failed to generate binary operation");
     }
+
+    mLastValue = result;
 }
 
 void CodeGeneration::visit(UnaryExprAST &n) {
     n.getExpression()->accept(*this);
     llvm::Value *operand = mLastValue;
 
+    llvm::Value *result = nullptr;
     switch (n.getOperator()) {
         case TOKEN_TYPE::MINUS:
-            mLastValue = mLlvmBuilder.CreateNeg(operand, "negtmp");
-            break;
+            if (n.getExpression()->getType() == TYPE::FLOAT) {
+                // Floating-point negation
+                result = mLlvmBuilder.CreateFNeg(operand, "fnegtmp");
+                break;
+            } else {
+                // Integer negation
+                result = mLlvmBuilder.CreateNeg(operand, "inegtmp");
+                break;
+            }
         case TOKEN_TYPE::NOT:
-            mLastValue = mLlvmBuilder.CreateNot(operand, "nottmp");
+            result = mLlvmBuilder.CreateNot(operand, "nottmp");
             break;
         default:
             // Handle unsupported operators
             mErrorReporter.codeGenError(n.getSourceLocation(), "Unsupported unary operator");
-            mLastValue = nullptr;
             break;
     }
 
-    if (!mLastValue) {
+    if (!result) {
         mErrorReporter.codeGenError(n.getSourceLocation(), "Failed to generate unary operation");
     }
+
+    mLastValue = result;
 }
 
 void CodeGeneration::visit(ArgsAST &n) {
@@ -342,6 +419,7 @@ void CodeGeneration::visit(FunctionDeclAST &n) {
     // Visit the prototype to create the function
     n.getProto()->accept(*this);
 
+    // TODO: crashing here if function already defined
     llvm::Function *function = llvm::cast<llvm::Function>(mLastValue);
 
     // Enter a new scope for the function
