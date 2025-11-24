@@ -92,6 +92,13 @@ class InternalCompilerError : public std::runtime_error {
         : std::runtime_error("Internal compiler error: " + msg) {}
 };
 
+// Code generation error
+class CodeGenError : public CompilerError {
+  public:
+    CodeGenError(SourceLoc loc, std::string msg)
+        : CompilerError(std::move(loc), "Code generation error: " + msg) {}
+};
+
 class ErrorReporter {
   public:
     [[noreturn]] void panic(const SourceLoc &loc, const std::string &expected,
@@ -124,6 +131,10 @@ class ErrorReporter {
     [[noreturn]] void semanticError(const SourceLoc &loc,
                                     const std::string &msg) {
         throw SemanticError(loc, msg);
+    }
+
+    [[noreturn]] void codeGenError(const SourceLoc &loc, const std::string &msg) {
+        throw CodeGenError(loc, msg);
     }
 };
 

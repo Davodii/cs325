@@ -62,6 +62,7 @@ void SemanticAnalyser::visit(VariableASTnode &n) {
     // Assign the resolved symbol
     n.setResolvedSymbol(sym);
 }
+
 void SemanticAnalyser::visit(AssignExprAST &n) {
     // Visit the variable
     n.getVariable()->accept(*this);
@@ -188,6 +189,7 @@ void SemanticAnalyser::visit(BinaryExprAST &n) {
             "Unknown type mismatch in binary expression semantic analysis");
     }
 }
+
 void SemanticAnalyser::visit(UnaryExprAST &n) {
     // Visit the expression
     n.getExpression()->accept(*this);
@@ -219,12 +221,14 @@ void SemanticAnalyser::visit(UnaryExprAST &n) {
             "Unknown unary operator in semantic analysis");
     }
 }
+
 void SemanticAnalyser::visit(ArgsAST &n) {
     // Visit all the arguments
     for (auto &arg : n.getArgsList()) {
         arg->accept(*this);
     }
 }
+
 void SemanticAnalyser::visit(CallExprAST &n) {
     // Visit the callee
     n.getCallee()->accept(*this);
@@ -271,6 +275,7 @@ void SemanticAnalyser::visit(CallExprAST &n) {
 
     // All checks passed
 }
+
 void SemanticAnalyser::visit(ParamAST &n) {
     // Add a new entry to symbol table
     Symbol symbol = Symbol(
@@ -287,6 +292,7 @@ void SemanticAnalyser::visit(ParamAST &n) {
         mErrorReporter.redefinition(n.getSourceLocation(), n.getName());
     }
 }
+
 void SemanticAnalyser::visit(VarDeclAST &n) {
     // Check if the variable is already defined in the current scope
     if (mSymbolTable.isDefinedInCurrentScope(n.getName())) {
@@ -299,11 +305,12 @@ void SemanticAnalyser::visit(VarDeclAST &n) {
     std::unique_ptr<Symbol> symbolPtr = std::make_unique<Symbol>(symbol);
 
     // Link the symbol to the variable declaration AST node
-    n.symbol = symbolPtr.get();
+    n.setSymbol(symbolPtr.get());
 
     // Add the symbol to the symbol table
     mSymbolTable.addSymbol(std::move(symbolPtr));
 }
+
 void SemanticAnalyser::visit(GlobVarDeclAST &n) {
     // Check if the variable is already defined in the current scope
     if (mSymbolTable.isDefinedInCurrentScope(n.getName())) {
@@ -320,6 +327,7 @@ void SemanticAnalyser::visit(GlobVarDeclAST &n) {
     // Link the symbol to the variable declaration AST node
     n.symbol = symbolPtr.get();
 }
+
 void SemanticAnalyser::visit(BlockAST &n) {
     if (n.getLocalDecls().empty() && n.getStmts().empty()) {
         // Empty block, nothing to do
@@ -423,6 +431,7 @@ void SemanticAnalyser::visit(WhileExprAST &n) {
     // Visit the body
     n.getBody()->accept(*this);
 }
+
 void SemanticAnalyser::visit(ReturnAST &n) {
     if (!mInsideFunction) {
         mErrorReporter.semanticError(n.getSourceLocation(),

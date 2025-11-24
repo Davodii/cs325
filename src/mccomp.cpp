@@ -45,8 +45,11 @@ int main(int argc, char **argv) {
 
     fprintf(stderr, "Semantic analysis finished!\n");
 
+
+    CodeGeneration codegenVisitor(errorReporter);
+
     // Initialize code generation
-    TheModule = std::make_unique<Module>("mini-c", TheContext);
+    // TheModule = std::make_unique<Module>("mini-c", TheContext);
 
     // TODO: Use CodegenVisitor to generate code
 

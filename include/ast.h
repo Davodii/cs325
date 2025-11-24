@@ -112,6 +112,7 @@ class IntASTnode : public ExprAST {
     }
     std::string to_string(int indent = 0) const override;
     void accept(ASTVisitor &v) override { v.visit(*this); }
+    int getValue() const { return mVal; }
 
   private:
     int mVal;
@@ -130,6 +131,7 @@ class BoolASTnode : public ExprAST {
     }
     std::string to_string(int indent = 0) const override;
     void accept(ASTVisitor &v) override { v.visit(*this); }
+    bool getValue() const { return mBool; }
 
   private:
     bool mBool;
@@ -148,6 +150,7 @@ class FloatASTnode : public ExprAST {
     }
     std::string to_string(int indent = 0) const override;
     void accept(ASTVisitor &v) override { v.visit(*this); }
+    double getValue() const { return mVal; }
 
   private:
     double mVal;
@@ -342,11 +345,14 @@ class VarDeclAST : public DeclAST {
     std::string to_string(int indent = 0) const override;
     void accept(ASTVisitor &v) override { v.visit(*this); }
 
-    Symbol *symbol;
+    void setSymbol(Symbol *sym) { mSymbol = sym; }
+    Symbol *getSymbol() const { return mSymbol; }
 
   private:
     std::string mName;
     TYPE mType;
+    Symbol *mSymbol;
+
 };
 
 /**
